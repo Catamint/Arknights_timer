@@ -64,10 +64,20 @@ FIELD_MAP = {
         'MAX_SP': '<maxSp>k__BackingField', 'MINUS_HP': '<minusHp>k__BackingField',
     }),
     'EnemyFields': ('Torappu.Battle', 'Enemy', {
-        'M_CURRENT_TILE': 'm_currentTile', 'M_BLOCK_POSITION': 'm_blockPosition',
+        'M_CURRENT_TILE': 'm_currentTile', 'M_CURSOR': 'm_cursor',
+        'M_CACHED_ROUTE': 'm_cachedRoute',
+        'M_CACHED_CURSOR_INDEX': 'm_cachedCursorIndex',
+        'M_TRACE_TARGET_CURSOR': 'm_traceTargetCursor',
+        'M_BLOCKER': 'm_blocker', 'M_BLOCK_POSITION': 'm_blockPosition',
         'M_POS_IN_LAST_FRAME': 'm_posInLastFrame', 'M_ALL_SKILLS': 'm_allSkills',
+        'ROUTE_END_POS': 'm_routeEndPosition',
         'ROUTE_SPAWN_POS': 'm_routeSpawnPosition', 'M_SKILLS': 'm_skills',
+        'ATTACK_ABILITY_CASTED': 'm_attackAbilityCasted',
+        'COMBAT_ABILITY_CASTED': 'm_combatAbilityCasted',
+        'COMBAT_NEXT_ESCAPE_TIME': 'm_combatNextEscapeTime',
         'DATA': '<data>k__BackingField', 'OPTIONS': '<options>k__BackingField',
+        'ATTACK_WRAPPER': '<attackWrapper>k__BackingField',
+        'COMBAT_WRAPPER': '<combatWrapper>k__BackingField',
     }),
     'EnemyOptionsFields': ('', 'Enemy.Options', {
         'IS_SUMMON': 'isSummon', 'HIDDEN_GROUP_KEY': 'hiddenGroupKey',
@@ -77,6 +87,9 @@ FIELD_MAP = {
         'M_ABNORMAL_FLAGS_COUNTER': 'm_abnormalFlagsCounter',
         'M_ABNORMAL_IMMUNE_COUNTER': 'm_abnormalImmuneCounter',
         'M_ABNORMAL_ANTI_COUNTER': 'm_abnormalAntiCounter',
+        'M_ABNORMAL_RESISTANCE_MODIFIERS': 'm_abnormalResistanceModifiers',
+        'M_ABNORMAL_RESISTANCE_CACHE': 'm_abnormalResistanceCache',
+        'M_ABNORMAL_RESISTANCE_DIRTY_MASK': 'm_abnormalResistanceDirtyMask',
         'M_ABNORMAL_COMBO_MGR': 'm_abnormalComboMgr',
         'M_RAW_DATA': 'm_rawData', 'M_CACHED_DATA': 'm_cachedData',
     }),
@@ -117,6 +130,8 @@ FIELD_MAP = {
         'M_ATTRIBUTE_ADDITIONS': 'm_attributeAdditions',
         'M_ATTRIBUTE_FINAL_ADDITIONS': 'm_attributeFinalAdditions',
         'M_ATTRIBUTE_FINAL_SCALERS': 'm_attributeFinalScalers',
+        'M_ABNORMAL_RESISTANCE': 'm_abnormalResistance',
+        'M_ABNORMAL_RESISTANCE_MASK': 'm_abnormalResistanceMask',
         'M_DATA': 'm_data', 'M_LIFE_TIME': 'm_lifeTime',
         'M_REMAINING_TIME': 'm_remainingTime', 'M_EXISTING_TIME': 'm_existingTime',
         'M_TRIGGER_CNT': 'm_triggerCnt', 'M_STACK_CNT': 'm_stackCnt',
@@ -141,9 +156,34 @@ FIELD_MAP = {
         'INSTANCE_UID': '<instanceUid>k__BackingField',
     }),
     'BuffDataFields': ('Torappu', 'BuffData', {
-        'BUFF_KEY': 'buffKey', 'TEMPLATE_KEY': 'templateKey',
+        'ATTRIBUTES': 'attributes', 'BUFF_KEY': 'buffKey',
+        'LOAD_FROM_DB': 'loadFromDB', 'IS_DURABLE': 'isDurableBuff',
+        'IS_DAMAGE_MISSABLE': 'isDamageMissable',
+        'IS_SILENCEABLE': 'isSilenceable', 'IS_STUNNABLE': 'isStunnable',
+        'IS_FREEZABLE': 'isFreezable', 'IS_LEVITATABLE': 'isLevitatable',
+        'IS_GROUND_BOUNDABLE': 'isGroundBoundable',
+        'STATUS_RESISTABLE': 'statusResistable', 'TEMPLATE_KEY': 'templateKey',
+        'DISABLE_OVERRIDE': 'disableOverride', 'OVERRIDE_KEY': 'overrideKey',
+        'OVERRIDE_TYPE': 'overrideType', 'MAX_STACK_COUNT': 'maxStackCnt',
+        'MAX_VALID_STACK_COUNT': 'maxValidStackCnt',
+        'INDEPENDENT_CHARACTER_SOURCE': 'independentCharacterSource',
+        'OVERRIDE_EFFECT_KEY': 'overrideEffectKey', 'AUDIO_SIGNAL': 'audioSignal',
         'LIFE_TIME_TYPE': 'lifeTimeType', 'DURATION_KEY': 'durationKey',
-        'LIFE_TIME': 'lifeTime', 'PRIORITY': 'priority',
+        'REMAINING_TIME_KEY': 'remainingTimeKey', 'LIFE_TIME': 'lifeTime',
+        'TRIGGER_LIFE_TYPE': 'triggerLifeType', 'TRIGGER_COUNT': 'triggerCnt',
+        'TRIGGER_INTERVAL': 'triggerInterval', 'PRIORITY': 'priority',
+        'BLACKBOARD': 'blackboard',
+    }),
+    'CharacterFields': ('Torappu.Battle', 'Character', {
+        'CREATED_TIME': 'm_createdTime', 'DEAD_TIME': 'm_deadTime',
+        'ROOT_TILE': 'm_rootTile', 'BLOCKED_ENEMY_MANAGER': 'm_blockedEnemyMgr',
+        'BLOCK_RADIUS_MANAGER': 'm_blockRadiusMgr', 'SKILL': 'm_skill',
+        'SKILL_DATA': 'm_skillData', 'MAX_ES_RATIO': 'm_maxEsRatio',
+        'RUNTIME_ANIMATOR': 'm_currentSkin', 'CURRENT_SKIN': 'm_currentSkin',
+        'DECK_BUFF_DATA': 'm_deckBuffDatas',
+        'DECK_BUFF_BLACKBOARD': 'm_deckBuffBlackboard',
+        'DEPLOY_COST_THIS_TIME': 'm_deployCostThisTime',
+        'CARD_UID': '<cardUid>k__BackingField', 'DATA': '<data>k__BackingField',
     }),
     'BattleControllerFields': ('Torappu.Battle', 'BattleController', {
         'MAP': '_map', 'SCHEDULER': '_scheduler',
@@ -176,8 +216,53 @@ FIELD_MAP = {
         'SCHEDULER_WRAPPER': 'm_mainScheduler',
     }),
     'LevelDataFields': ('Torappu', 'LevelData', {
-        'LEVEL_ID': 'levelId', 'ENEMIES': 'enemies', 'ENEMY_DB_REFS': 'enemyDbRefs',
+        'MAP_ID': 'mapId', 'MAP_DATA': 'mapData', 'LEVEL_ID': 'levelId',
+        'ROUTES': 'routes', 'EXTRA_ROUTES': 'extraRoutes',
+        'ENEMIES': 'enemies', 'ENEMY_DB_REFS': 'enemyDbRefs',
         'WAVES': 'waves', 'BRANCHES': 'branches',
+    }),
+    'MapFields': ('Torappu.Battle', 'Map', {
+        'DATA': 'm_data', 'M_ROUTES': 'm_routes',
+        'M_EXTRA_ROUTES': 'm_extraRoutes',
+        'M_RUNTIME_ROUTES': 'm_runtimeRoutes',
+        'M_RUNTIME_TRACE_ROUTES': 'm_runtimeTraceRoutes',
+        'M_RUNTIME_EXTRA_ROUTES': 'm_runtimeExtraRoutes',
+    }),
+    'BasicCursorFields': ('Torappu.Battle', 'BasicCursor', {
+        'M_ROUTE': 'm_route', 'M_CURSOR': 'm_cursor',
+        'M_CHECKPOINTS': 'm_checkpoints',
+        'SNAPSHOT': '<snapshot>k__BackingField',
+    }),
+    'DirectionCursorFields': ('Torappu.Battle', 'DirectionCursor', {
+        'M_NEXT_GRID': 'm_nextGrid', 'TOTAL_DIST': '<totalDist>k__BackingField',
+    }),
+    'RouteFields': ('Torappu.Battle', 'Route', {
+        'M_MAP': 'm_map', 'M_DATA': 'm_data', 'M_PATH_FINDER': 'm_pathFinder',
+        'M_TARGET_NEXT_MAP': 'm_targetNextMap',
+        'M_CHECKPOINTS_NEXT_MAP': 'm_checkpointsNextMap',
+    }),
+    'RuntimeCheckpointFields': ('', 'BasicCursor.Checkpoint', {
+        'DATA': '<data>k__BackingField', 'CURSOR': '<cursor>k__BackingField',
+    }),
+    'WaitForSecondsCheckpointFields': ('', 'BasicCursor.WaitForSecondsCheckpoint', {
+        'M_TIME': 'm_time',
+    }),
+    'SchedulerSnapshotFields': ('', 'Scheduler.SchedulerSnapshot', {
+        'WAVE_START_TIME': 'waveStartTime',
+        'FRAGMENT_START_TIME': 'fragmentStartTime',
+        'ACTION_START_TIME': 'actionStartTime',
+    }),
+    'RouteDataFields': ('Torappu', 'RouteData', {
+        'MOTION_MODE': 'motionMode', 'START_POSITION': 'startPosition',
+        'END_POSITION': 'endPosition', 'SPAWN_RANDOM_RANGE': 'spawnRandomRange',
+        'SPAWN_OFFSET': 'spawnOffset', 'CHECKPOINTS': 'checkpoints',
+        'ALLOW_DIAGONAL_MOVE': 'allowDiagonalMove',
+    }),
+    'RouteCheckpointFields': ('', 'RouteData.CheckpointData', {
+        'TYPE': 'type', 'TIME': 'time', 'POSITION': 'position',
+        'REACH_OFFSET': 'reachOffset',
+        'RANDOMIZE_REACH_OFFSET': 'randomizeReachOffset',
+        'REACH_DISTANCE': 'reachDistance',
     }),
     'WaveDataFields': ('', 'LevelData.WaveData', {
         'PRE_DELAY': 'preDelay', 'POST_DELAY': 'postDelay',
@@ -283,20 +368,45 @@ def build_offsets(dump_path: Path):
             output[output_class] = converted
 
     # 读取尺寸不是 dump 字段；用最后一个实际读取字段保守推导。
-    if ('OPTIONS' in output.get('EnemyFields', {})
-            and 'ACTION_DATA' in output.get('EnemyOptionsFields', {})):
-        options = int(output['EnemyFields']['OPTIONS'], 0)
-        action = int(output['EnemyOptionsFields']['ACTION_DATA'], 0)
-        output['EnemyFields']['READ_SIZE'] = f'0x{(options + action + 0x10 + 7) & ~7:X}'
+    if 'COMBAT_WRAPPER' in output.get('EnemyFields', {}):
+        last = int(output['EnemyFields']['COMBAT_WRAPPER'], 0)
+        output['EnemyFields']['READ_SIZE'] = f'0x{(last + 0x10 + 7) & ~7:X}'
+    if 'DATA' in output.get('CharacterFields', {}):
+        last = int(output['CharacterFields']['DATA'], 0)
+        output['CharacterFields']['READ_SIZE'] = f'0x{(last + 0x18 + 7) & ~7:X}'
+    if 'M_CACHED_DATA' in output.get('AttributesFields', {}):
+        last = int(output['AttributesFields']['M_CACHED_DATA'], 0)
+        output['AttributesFields']['READ_SIZE'] = f'0x{(last + 8 + 7) & ~7:X}'
     if 'HAS_SHIELD' in output.get('BuffFields', {}):
         last = int(output['BuffFields']['HAS_SHIELD'], 0)
         output['BuffFields']['READ_SIZE'] = f'0x{(last + 4 + 7) & ~7:X}'
     if 'INSTANCE_UID' in output.get('GlobalBuffFields', {}):
         last = int(output['GlobalBuffFields']['INSTANCE_UID'], 0)
         output['GlobalBuffFields']['READ_SIZE'] = f'0x{(last + 8 + 7) & ~7:X}'
-    if 'PRIORITY' in output.get('BuffDataFields', {}):
-        last = int(output['BuffDataFields']['PRIORITY'], 0)
+    if 'BLACKBOARD' in output.get('BuffDataFields', {}):
+        last = int(output['BuffDataFields']['BLACKBOARD'], 0)
         output['BuffDataFields']['READ_SIZE'] = f'0x{(last + 0x10 + 7) & ~7:X}'
+    if 'M_RUNTIME_EXTRA_ROUTES' in output.get('MapFields', {}):
+        last = int(output['MapFields']['M_RUNTIME_EXTRA_ROUTES'], 0)
+        output['MapFields']['READ_SIZE'] = f'0x{(last + 8 + 7) & ~7:X}'
+    if 'SNAPSHOT' in output.get('BasicCursorFields', {}):
+        last = int(output['BasicCursorFields']['SNAPSHOT'], 0)
+        output['BasicCursorFields']['READ_SIZE'] = f'0x{(last + 0x20 + 7) & ~7:X}'
+    if 'TOTAL_DIST' in output.get('DirectionCursorFields', {}):
+        last = int(output['DirectionCursorFields']['TOTAL_DIST'], 0)
+        output['DirectionCursorFields']['READ_SIZE'] = f'0x{(last + 4 + 7) & ~7:X}'
+    if 'M_CHECKPOINTS_NEXT_MAP' in output.get('RouteFields', {}):
+        last = int(output['RouteFields']['M_CHECKPOINTS_NEXT_MAP'], 0)
+        output['RouteFields']['READ_SIZE'] = f'0x{(last + 8 + 7) & ~7:X}'
+    if 'CURSOR' in output.get('RuntimeCheckpointFields', {}):
+        last = int(output['RuntimeCheckpointFields']['CURSOR'], 0)
+        output['RuntimeCheckpointFields']['READ_SIZE'] = f'0x{(last + 0x10 + 7) & ~7:X}'
+    if 'ALLOW_DIAGONAL_MOVE' in output.get('RouteDataFields', {}):
+        last = int(output['RouteDataFields']['ALLOW_DIAGONAL_MOVE'], 0)
+        output['RouteDataFields']['READ_SIZE'] = f'0x{(last + 8 + 7) & ~7:X}'
+    if 'REACH_DISTANCE' in output.get('RouteCheckpointFields', {}):
+        last = int(output['RouteCheckpointFields']['REACH_DISTANCE'], 0)
+        output['RouteCheckpointFields']['READ_SIZE'] = f'0x{(last + 4 + 7) & ~7:X}'
     if 'ACTION_ID' in output.get('SpawnActionFields', {}):
         last = int(output['SpawnActionFields']['ACTION_ID'], 0)
         output['SpawnActionFields']['READ_SIZE'] = f'0x{(last + 0x10 + 7) & ~7:X}'
@@ -310,9 +420,30 @@ def build_offsets(dump_path: Path):
         enum_output[output_name] = dict(sorted(source.items(), key=lambda row: row[1]))
     required = {
         'EntityFields': ('M_HP', 'M_ATTRIBUTES', 'ID', 'BUFF_CONTAINER'),
-        'EnemyFields': ('M_SKILLS', 'DATA', 'OPTIONS', 'READ_SIZE'),
-        'AttributesFields': ('M_CACHED_DATA',),
+        'EnemyFields': ('M_SKILLS', 'DATA', 'OPTIONS', 'ATTACK_ABILITY_CASTED',
+                        'COMBAT_ABILITY_CASTED', 'COMBAT_NEXT_ESCAPE_TIME',
+                        'ATTACK_WRAPPER', 'COMBAT_WRAPPER', 'M_CURSOR',
+                        'M_CACHED_ROUTE', 'M_CACHED_CURSOR_INDEX',
+                        'M_TRACE_TARGET_CURSOR', 'ROUTE_END_POS', 'READ_SIZE'),
+        'CharacterFields': ('CARD_UID', 'DATA', 'READ_SIZE'),
+        'AttributesFields': ('M_ABNORMAL_COMBO_MGR', 'M_RAW_DATA',
+                             'M_CACHED_DATA', 'READ_SIZE'),
+        'BuffDataFields': ('LIFE_TIME', 'TRIGGER_LIFE_TYPE', 'TRIGGER_COUNT',
+                           'TRIGGER_INTERVAL', 'PRIORITY', 'BLACKBOARD',
+                           'READ_SIZE'),
         'BattleControllerFields': ('SCHEDULER', 'LEVEL_DATA', 'UNIT_MANAGER'),
+        'LevelDataFields': ('ROUTES', 'EXTRA_ROUTES'),
+        'MapFields': ('M_ROUTES', 'M_EXTRA_ROUTES', 'READ_SIZE'),
+        'BasicCursorFields': ('M_ROUTE', 'M_CURSOR', 'M_CHECKPOINTS',
+                              'SNAPSHOT', 'READ_SIZE'),
+        'DirectionCursorFields': ('M_NEXT_GRID', 'READ_SIZE'),
+        'RouteFields': ('M_DATA', 'READ_SIZE'),
+        'RuntimeCheckpointFields': ('DATA', 'READ_SIZE'),
+        'WaitForSecondsCheckpointFields': ('M_TIME',),
+        'SchedulerSnapshotFields': ('WAVE_START_TIME', 'FRAGMENT_START_TIME'),
+        'RouteDataFields': ('START_POSITION', 'END_POSITION', 'CHECKPOINTS',
+                            'READ_SIZE'),
+        'RouteCheckpointFields': ('TYPE', 'TIME', 'POSITION', 'READ_SIZE'),
     }
     fatal = [f'{cls}.{field}' for cls, names in required.items()
              for field in names if field not in output.get(cls, {})]
@@ -325,6 +456,24 @@ def sha256_file(path: Path):
         for chunk in iter(lambda: stream.read(4 * 1024 * 1024), b''):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def generated_offsets_match(path: Path, payload: dict):
+    """Return whether an existing generated file represents the current dump.
+
+    ``generated_at`` is deliberately ignored: rebuilding the same dump at a
+    different time must still pass validation.
+    """
+    try:
+        existing = json.loads(path.read_text(encoding='utf-8'))
+    except (OSError, ValueError, TypeError, json.JSONDecodeError):
+        return False
+    return (
+        existing.get('schema_version') == payload.get('schema_version')
+        and existing.get('source_sha256') == payload.get('source_sha256')
+        and existing.get('classes') == payload.get('classes')
+        and existing.get('enums') == payload.get('enums')
+    )
 
 
 def display_source_path(path: Path):
@@ -468,6 +617,11 @@ def main(argv=None):
         'classes': classes,
         'enums': enums,
     }
+    stale_offsets = False
+    if args.check and not generated_offsets_match(args.offsets_out, payload):
+        stale_offsets = True
+        print('[失败] generated_offsets.json 与当前 dump.cs 不一致；'
+              '请先不带 --check 重新生成偏移。')
     if not args.check:
         args.offsets_out.parent.mkdir(parents=True, exist_ok=True)
         args.offsets_out.write_text(
@@ -516,7 +670,7 @@ def main(argv=None):
     unknown = sorted(dump_flags - known_flags)
     if unknown:
         print('[警告] dump 新增了尚无中文映射的异常状态：' + '，'.join(unknown))
-    return 0
+    return 4 if stale_offsets else 0
 
 
 if __name__ == '__main__':

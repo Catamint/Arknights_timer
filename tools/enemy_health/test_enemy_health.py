@@ -11,7 +11,9 @@ from tools.enemy_health.enemy_reader import (
     EnemyInfo, EnemyReader, spine_track_remaining, summarize_custom_shields,
 )
 from tools.enemy_health.precise_position import PrecisePositionReader
-from tools.enemy_health.update_from_unpack import extract_preunpacked, parse_dump
+from tools.enemy_health.update_from_unpack import (
+    extract_preunpacked, generated_offsets_match, parse_dump,
+)
 from tools.enemy_health.memcore import (
     MemCore, TcpChannel, find_running_emulator_adbs, query_adb_devices,
 )
@@ -361,18 +363,61 @@ class EnemyDetailModelTests(unittest.TestCase):
         self.assertEqual({idx for idx, _, _ in gs.ATTRIBUTE_DEFS},
                          set(range(0, 9)) | set(range(13, 38)))
 
-    def test_august_offsets_and_new_abnormal_flag_are_loaded(self):
+    def test_september_layout_offsets_are_loaded(self):
         self.assertEqual(gs.EntityFields.M_ATTRIBUTES, 0xB0)
         self.assertEqual(gs.EntityFields.ID, 0x148)
-        self.assertEqual(gs.EnemyFields.DATA, 0x510)
-        self.assertEqual(gs.EnemyFields.ATTACK_ABILITY_CASTED, 0x4E8)
-        self.assertEqual(gs.EnemyFields.COMBAT_NEXT_ESCAPE_TIME, 0x4F8)
-        self.assertEqual(gs.EnemyFields.ATTACK_WRAPPER, 0x550)
-        self.assertEqual(gs.EnemyFields.COMBAT_WRAPPER, 0x558)
-        self.assertEqual(gs.EnemyFields.READ_SIZE, 0x568)
-        self.assertEqual(gs.BuffFields.IS_ACTUALLY_ENABLED, 0x1ED)
+        self.assertEqual(gs.EnemyFields.ROUTE_SPAWN_POS, 0x4B8)
+        self.assertEqual(gs.EnemyFields.ATTACK_ABILITY_CASTED, 0x4F0)
+        self.assertEqual(gs.EnemyFields.COMBAT_ABILITY_CASTED, 0x4F8)
+        self.assertEqual(gs.EnemyFields.COMBAT_NEXT_ESCAPE_TIME, 0x500)
+        self.assertEqual(gs.EnemyFields.DATA, 0x518)
+        self.assertEqual(gs.EnemyFields.OPTIONS, 0x520)
+        self.assertEqual(gs.EnemyFields.ATTACK_WRAPPER, 0x558)
+        self.assertEqual(gs.EnemyFields.COMBAT_WRAPPER, 0x560)
+        self.assertGreaterEqual(gs.EnemyFields.READ_SIZE,
+                                gs.EnemyFields.COMBAT_WRAPPER + 8)
+        self.assertEqual(gs.CharacterFields.CARD_UID, 0x528)
+        self.assertEqual(gs.CharacterFields.DATA, 0x538)
+        self.assertGreaterEqual(gs.CharacterFields.READ_SIZE,
+                                gs.CharacterFields.DATA + 8)
+        self.assertEqual(gs.AttributesFields.M_ABNORMAL_COMBO_MGR, 0x50)
+        self.assertEqual(gs.AttributesFields.M_RAW_DATA, 0x58)
+        self.assertEqual(gs.AttributesFields.M_CACHED_DATA, 0x68)
+        self.assertGreaterEqual(gs.AttributesFields.READ_SIZE,
+                                gs.AttributesFields.M_CACHED_DATA + 8)
+        self.assertEqual(gs.BuffFields.M_DATA, 0x78)
+        self.assertEqual(gs.BuffFields.IS_ACTUALLY_ENABLED, 0x1FD)
+        self.assertEqual(gs.BuffFields.HAS_SHIELD, 0x27C)
+        self.assertGreaterEqual(gs.BuffFields.READ_SIZE,
+                                gs.BuffFields.HAS_SHIELD + 1)
+        self.assertEqual(gs.BuffDataFields.REMAINING_TIME_KEY, 0x88)
+        self.assertEqual(gs.BuffDataFields.LIFE_TIME, 0x90)
+        self.assertEqual(gs.BuffDataFields.TRIGGER_COUNT, 0x98)
+        self.assertEqual(gs.BuffDataFields.BLACKBOARD, 0xC0)
+        self.assertGreaterEqual(gs.BuffDataFields.READ_SIZE,
+                                gs.BuffDataFields.BLACKBOARD + 8)
         self.assertEqual(gs.AbnormalFlag.E_NUM, 46)
         self.assertEqual(gs.ABNORMAL_FLAG_CN_NAMES[45], '地面束缚')
+
+    def test_generated_offset_check_rejects_stale_layout(self):
+        payload = {
+            'schema_version': 1,
+            'source_sha256': 'new',
+            'classes': {'EnemyFields': {'DATA': '0x518'}},
+            'enums': {},
+        }
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / 'generated_offsets.json'
+            path.write_text(
+                '{"schema_version": 1, "source_sha256": "old", '
+                '"classes": {}, "enums": {}}', encoding='utf-8')
+            self.assertFalse(generated_offsets_match(path, payload))
+            path.write_text(
+                '{"schema_version": 1, "source_sha256": "new", '
+                '"generated_at": "ignored", "classes": '
+                '{"EnemyFields": {"DATA": "0x518"}}, "enums": {}}',
+                encoding='utf-8')
+            self.assertTrue(generated_offsets_match(path, payload))
 
     def test_enemy_combat_post_action_uses_exact_deadline_frames(self):
         class FakeMem:
@@ -981,7 +1026,7 @@ class EnemyDetailModelTests(unittest.TestCase):
 
         class FakeChannel:
             mode = 'srv'
-            srv_version = 4
+            srv_version = TcpChannel.PROTOCOL_VERSION
 
         reader._chan = FakeChannel()
         reader._poll_fast_impl = lambda: {'ok': True}
@@ -1495,7 +1540,7 @@ class TcpChannelFrameStatsTests(unittest.TestCase):
         channel = TcpChannel(object())
         channel.sock = object()
         channel.mode = 'srv'
-        channel.srv_version = 4
+        channel.srv_version = TcpChannel.PROTOCOL_VERSION
         channel._batch_srv = lambda reqs: [bytes(size) for _addr, size in reqs]
         channel.batch_read([(0x1000, 8), (0x2000, 12)])
         channel.batch_read([(0x3000, 4)])
@@ -1512,7 +1557,7 @@ class TcpChannelFrameStatsTests(unittest.TestCase):
         channel = TcpChannel(object())
         channel.sock = object()
         channel.mode = 'srv'
-        channel.srv_version = 4
+        channel.srv_version = TcpChannel.PROTOCOL_VERSION
         calls = []
         generation = {'value': 0}
 
@@ -1559,7 +1604,7 @@ class TcpChannelFrameStatsTests(unittest.TestCase):
         channel = TcpChannel(object())
         channel.sock = object()
         channel.mode = 'srv'
-        channel.srv_version = 4
+        channel.srv_version = TcpChannel.PROTOCOL_VERSION
         channel._prefetch_active = True
         channel._prefetch_values = {(0x1000, 8): b'prefetch'}
         calls = []

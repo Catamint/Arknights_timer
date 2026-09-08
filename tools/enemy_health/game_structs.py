@@ -240,9 +240,9 @@ class CharacterFields:
     DECK_BUFF_DATA = 0x460        # object*
     DECK_BUFF_BLACKBOARD = 0x468  # Blackboard*
     DEPLOY_COST_THIS_TIME = 0x504 # int32
-    CARD_UID = 0x520              # uint32
-    DATA = 0x530                  # BattleCharacterData*
-    READ_SIZE = 0x548
+    CARD_UID = 0x528              # uint32
+    DATA = 0x538                  # BattleCharacterData*
+    READ_SIZE = 0x550
 
 
 class BlockedEnemyManagerFields:
@@ -472,20 +472,64 @@ SP_TYPE_NAMES = {
 class EnemyFields:
     M_CURRENT_TILE = 0x350      # Tile*
     M_CURSOR = 0x360            # DirectionCursor*
+    M_CACHED_ROUTE = 0x368      # Route*；运行时改路前的原路线
+    M_CACHED_CURSOR_INDEX = 0x370 # int32；改路前检查点索引
+    M_TRACE_TARGET_CURSOR = 0x380 # TracePositionCursor*；临时追踪游标
     M_BLOCKER = 0x390           # ObjectPtr<Character>（首槽为对象指针）
     M_BLOCK_POSITION = 0x3F8    # Vector2 (float x,y) 阻挡位置
     M_POS_IN_LAST_FRAME = 0x408 # Vector2 (float x,y) 上一帧地图坐标
     M_ALL_SKILLS = 0x448        # EnemySkill[] 全部技能组件
-    ROUTE_SPAWN_POS = 0x4B0     # GridPosition (int32 row,col) 出生格
-    ATTACK_ABILITY_CASTED = 0x4E8  # Ability* 当前普通攻击能力
-    COMBAT_ABILITY_CASTED = 0x4F0  # Ability* 当前战斗/技能能力
-    COMBAT_NEXT_ESCAPE_TIME = 0x4F8 # FP 战斗动作可退出的绝对时间
-    M_SKILLS = 0x4D0            # List<EnemySkill> 激活技能列表
-    DATA = 0x510                # LevelData.EnemyData*
-    OPTIONS = 0x518             # inline Enemy.Options
-    ATTACK_WRAPPER = 0x550      # Enemy.AttackWrapper*
-    COMBAT_WRAPPER = 0x558      # Enemy.CombatWrapper*
-    READ_SIZE = 0x568           # 含两个动作 Wrapper 与动作计时字段
+    ROUTE_END_POS = 0x4B0       # GridPosition；生成时的原始路线终点
+    ROUTE_SPAWN_POS = 0x4B8     # GridPosition (int32 row,col) 出生格
+    ATTACK_ABILITY_CASTED = 0x4F0  # Ability* 当前普通攻击能力
+    COMBAT_ABILITY_CASTED = 0x4F8  # Ability* 当前战斗/技能能力
+    COMBAT_NEXT_ESCAPE_TIME = 0x500 # FP 战斗动作可退出的绝对时间
+    M_SKILLS = 0x4D8            # List<EnemySkill> 激活技能列表
+    DATA = 0x518                # LevelData.EnemyData*
+    OPTIONS = 0x520             # inline Enemy.Options
+    ATTACK_WRAPPER = 0x558      # Enemy.AttackWrapper*
+    COMBAT_WRAPPER = 0x560      # Enemy.CombatWrapper*
+    READ_SIZE = 0x570           # 含两个动作 Wrapper 与对象尾部标量
+
+
+class BasicCursorFields:
+    M_ROUTE = 0x10              # Route*
+    M_CURSOR = 0x18             # int32；当前尚未完成的检查点索引
+    M_CHECKPOINTS = 0x28        # BasicCursor.Checkpoint[]
+    SNAPSHOT = 0x40             # inline Scheduler.SchedulerSnapshot
+    READ_SIZE = 0x60
+
+
+class DirectionCursorFields:
+    M_NEXT_GRID = 0x70          # GridPosition；当前寻路段的下一格
+    TOTAL_DIST = 0x7C           # float
+    READ_SIZE = 0x80
+
+
+class RouteFields:
+    M_MAP = 0x10                # Map*
+    M_DATA = 0x18               # RouteData*
+    M_PATH_FINDER = 0x20        # IPathFinding*
+    M_TARGET_NEXT_MAP = 0x28    # Route.Node[,]
+    M_CHECKPOINTS_NEXT_MAP = 0x30 # Route.Node[][,]
+    READ_SIZE = 0x38
+
+
+class RuntimeCheckpointFields:
+    DATA = 0x10                 # RouteData.CheckpointData*
+    CURSOR = 0x18               # BasicCursor*
+    READ_SIZE = 0x28            # 覆盖 WaitForSecondsCheckpoint.m_time
+
+
+class WaitForSecondsCheckpointFields:
+    M_TIME = 0x20               # FP；运行时精确剩余时间
+
+
+class SchedulerSnapshotFields:
+    WAVE_START_TIME = 0x00      # FP，相对 BasicCursorFields.SNAPSHOT
+    FRAGMENT_START_TIME = 0x08  # FP，相对 BasicCursorFields.SNAPSHOT
+    ACTION_START_TIME = 0x10    # float
+    SIZE = 0x18
 
 
 class EnemyOptionsFields:
@@ -601,9 +645,13 @@ class AttributesFields:
     M_ABNORMAL_FLAGS_COUNTER = 0x20    # short[AbnormalFlag.E_NUM]
     M_ABNORMAL_IMMUNE_COUNTER = 0x28   # short[AbnormalFlag.E_NUM]
     M_ABNORMAL_ANTI_COUNTER = 0x30     # short[AbnormalFlag.E_NUM]
-    M_ABNORMAL_COMBO_MGR = 0x38        # Attributes.AbnormalComboManager*
-    M_RAW_DATA = 0x40                  # ObscuredFP[] 原始属性
-    M_CACHED_DATA = 0x50               # ObscuredFP[] 计算后属性 [实测]
+    M_ABNORMAL_RESISTANCE_MODIFIERS = 0x38 # HashSet<IAbnormalResistanceModifier>*
+    M_ABNORMAL_RESISTANCE_CACHE = 0x40 # FP[]
+    M_ABNORMAL_RESISTANCE_DIRTY_MASK = 0x48 # int64
+    M_ABNORMAL_COMBO_MGR = 0x50        # Attributes.AbnormalComboManager*
+    M_RAW_DATA = 0x58                  # ObscuredFP[] 原始属性
+    M_CACHED_DATA = 0x68               # ObscuredFP[] 计算后属性 [实测]
+    READ_SIZE = 0x70
 
 
 class AbnormalComboManagerFields:
@@ -841,32 +889,34 @@ class BuffFields:
     M_ATTRIBUTE_ADDITIONS = 0x50
     M_ATTRIBUTE_FINAL_ADDITIONS = 0x58
     M_ATTRIBUTE_FINAL_SCALERS = 0x60
-    M_DATA = 0x68
-    M_LIFE_TIME = 0x70
-    M_REMAINING_TIME = 0x78
-    M_EXISTING_TIME = 0x80
-    M_TRIGGER_CNT = 0x88
-    M_STACK_CNT = 0x8C
-    M_MAX_VALID_STACK_CNT = 0x90
-    M_BLACKBOARD = 0xA8
-    IS_FINISHED = 0x1EA
-    IS_ACTUALLY_ENABLED = 0x1ED
-    IS_VALID = 0x1F0
-    IS_EP_BREAK_BUFF = 0x1F1
-    KEY = 0x1F8
-    OVERRIDE_KEY = 0x200
-    INSTANCE_UID = 0x208
-    PRIORITY = 0x20C
-    ATTRIBUTE_MASK = 0x210
-    ABNORMAL_FLAG_MASK = 0x218
-    ABNORMAL_IMMUNE_MASK = 0x220
-    ABNORMAL_ANTI_MASK = 0x228
-    ABNORMAL_COMBO_MASK = 0x230
-    ABNORMAL_COMBO_IMMUNE_MASK = 0x238
-    EFFECT_KEY = 0x240
-    SHIELD_MASK = 0x268
-    HAS_SHIELD = 0x26C
-    READ_SIZE = 0x270
+    M_ABNORMAL_RESISTANCE = 0x68
+    M_ABNORMAL_RESISTANCE_MASK = 0x70
+    M_DATA = 0x78
+    M_LIFE_TIME = 0x80
+    M_REMAINING_TIME = 0x88
+    M_EXISTING_TIME = 0x90
+    M_TRIGGER_CNT = 0x98
+    M_STACK_CNT = 0x9C
+    M_MAX_VALID_STACK_CNT = 0xA0
+    M_BLACKBOARD = 0xB8
+    IS_FINISHED = 0x1FA
+    IS_ACTUALLY_ENABLED = 0x1FD
+    IS_VALID = 0x200
+    IS_EP_BREAK_BUFF = 0x201
+    KEY = 0x208
+    OVERRIDE_KEY = 0x210
+    INSTANCE_UID = 0x218
+    PRIORITY = 0x21C
+    ATTRIBUTE_MASK = 0x220
+    ABNORMAL_FLAG_MASK = 0x228
+    ABNORMAL_IMMUNE_MASK = 0x230
+    ABNORMAL_ANTI_MASK = 0x238
+    ABNORMAL_COMBO_MASK = 0x240
+    ABNORMAL_COMBO_IMMUNE_MASK = 0x248
+    EFFECT_KEY = 0x250
+    SHIELD_MASK = 0x278
+    HAS_SHIELD = 0x27C
+    READ_SIZE = 0x280
 
 
 class GlobalBuffFields:
@@ -902,13 +952,14 @@ class BuffDataFields:
     AUDIO_SIGNAL = 0x70
     LIFE_TIME_TYPE = 0x78
     DURATION_KEY = 0x80
-    LIFE_TIME = 0x88
-    TRIGGER_LIFE_TYPE = 0x8C
-    TRIGGER_COUNT = 0x90
-    TRIGGER_INTERVAL = 0x94
-    PRIORITY = 0xA0
-    BLACKBOARD = 0xB8
-    READ_SIZE = 0xC8
+    REMAINING_TIME_KEY = 0x88
+    LIFE_TIME = 0x90
+    TRIGGER_LIFE_TYPE = 0x94
+    TRIGGER_COUNT = 0x98
+    TRIGGER_INTERVAL = 0x9C
+    PRIORITY = 0xA8
+    BLACKBOARD = 0xC0
+    READ_SIZE = 0xD0
 
 
 # ============================================================
@@ -1012,6 +1063,16 @@ class LevelDataFields:
     BRANCHES = 0x88                    # ListDict<string, BranchData>
     PREDEFINES = 0x90                  # PredefinedData*
     HARD_PREDEFINES = 0x98             # PredefinedData*
+
+
+class MapFields:
+    DATA = 0x58                        # MapData*
+    M_ROUTES = 0x70                    # Route[]；与 LevelData.routes 槽位对应
+    M_EXTRA_ROUTES = 0x78              # Route[]；与 extraRoutes 槽位对应
+    M_RUNTIME_ROUTES = 0x80            # ListDict<uint, Route>
+    M_RUNTIME_TRACE_ROUTES = 0x88      # ListDict<GridPosition, Route>
+    M_RUNTIME_EXTRA_ROUTES = 0x90      # ListDict<GridPosition, Route>
+    READ_SIZE = 0x98
 
 
 class MapDataFields:

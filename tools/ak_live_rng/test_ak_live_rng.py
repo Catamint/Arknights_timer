@@ -55,7 +55,7 @@ class FakeMem:
 
 
 class FakeScanMem(FakeMem):
-    """模拟设备侧 memsrv v4: scan_regions 直接在缓冲区里搜 (并记录调用次数)。"""
+    """模拟设备侧 memsrv v5: scan_regions 直接在缓冲区里搜 (并记录调用次数)。"""
 
     def __init__(self, size=0x100000):
         super().__init__(size)

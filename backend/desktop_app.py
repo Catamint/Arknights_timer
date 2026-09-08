@@ -44,6 +44,7 @@ from PySide6.QtWidgets import (
     QSpinBox,
     QTableWidget,
     QTableWidgetItem,
+    QTextBrowser,
     QVBoxLayout,
     QWidget,
 )
@@ -78,9 +79,10 @@ from tools.enemy_health.memcore import (
 )
 from app.enemy_ui import (
     ENEMY_COLUMN_DEFS, ENEMY_COLUMN_INDEX, EnemyColumnDialog, EnemyDetailDialog,
-    EnemyPrecisionDialog, apply_column_order, default_precision_values,
-    format_column_value, load_column_order, load_visible_columns,
-    save_column_order, save_visible_columns, visible_enemy_rows,
+    EnemyPrecisionDialog, PATHING_COLUMN_KEYS, apply_column_order,
+    default_precision_values, format_column_value, load_column_order,
+    load_visible_columns, save_column_order, save_visible_columns,
+    visible_enemy_rows,
 )
 from app.character_ui import (
     CHARACTER_COLS, CHARACTER_COL_WIDTHS, CHARACTER_COLUMN_DEFS,
@@ -161,6 +163,26 @@ CHARACTER_DETAIL_FULL_SEC = 1.0 / 60.0
 ENEMY_COLS = [col['label'] for col in ENEMY_COLUMN_DEFS]
 ENEMY_COL_WIDTHS = [col['width'] for col in ENEMY_COLUMN_DEFS]
 ENEMY_STATE_NAMES = {0: 'NONE', 1: 'INITED', 2: '战斗中', 3: '已结束'}
+BEGINNER_GUIDE_PATH = Path('docs') / '新手使用教程.md'
+BEGINNER_GUIDE_FALLBACK = """# 新手使用教程
+
+教程文件暂时无法读取。请确认程序文件完整，或在项目的 `docs` 目录中打开
+`新手使用教程.md`。
+
+快速开始：启动已开启 Root 权限的 MuMu 12 和游戏，点击“选择 ADB”选择模拟器
+自带的 `adb.exe` 与在线设备；进入关卡后依次启用自动寻址、扫描关卡及操作、
+开始扫描敌人和扫描随机数。
+"""
+
+
+def load_beginner_guide(path: Path | None = None) -> str:
+    """读取开发目录或 PyInstaller ``_MEIPASS/docs`` 中的新手教程。"""
+    guide_path = Path(path) if path is not None else _REPO_ROOT / BEGINNER_GUIDE_PATH
+    try:
+        text = guide_path.read_text(encoding='utf-8-sig').strip()
+    except (OSError, UnicodeError):
+        return BEGINNER_GUIDE_FALLBACK.strip()
+    return text or BEGINNER_GUIDE_FALLBACK.strip()
 
 
 def _system_prefers_dark(app: QApplication | None = None) -> bool:
@@ -612,13 +634,43 @@ def _format_game_time(value: object) -> str:
 
 
 def _format_enemy_read_mode(snapshot: dict) -> str:
-    """memsrv v4 是唯一可显示的内存读取后端。"""
+    """memsrv v5 是唯一可显示的同帧路径读取后端。"""
     mode = snapshot.get('read_mode', '')
     backend = snapshot.get('read_backend', '')
     if mode == 'fast' and backend == 'srv' \
-            and int(snapshot.get('memsrv_version', 0) or 0) == 4:
-        return '设备快照（memsrv v4）'
+            and int(snapshot.get('memsrv_version', 0) or 0) == 5:
+        return '设备快照（memsrv v5）'
     return '检测中'
+
+
+def fail_closed_mismatched_enemy_pathing(snapshot: dict) -> None:
+    """Invalidate path records before any UI/API/cache consumer sees them."""
+    if not snapshot.get('ok'):
+        return
+    sample_frame = snapshot.get('fixed_frame', snapshot.get('sample_frame'))
+    for enemy in snapshot.get('enemies', ()):
+        pathing = getattr(enemy, 'pathing', None)
+        if not isinstance(pathing, dict) or not pathing.get('available'):
+            continue
+        path_frame = pathing.get('sample_frame', pathing.get('sampleFrame'))
+        if sample_frame is not None and path_frame == sample_frame:
+            continue
+        enemy.pathing = {
+            'available': False,
+            'sample_frame': path_frame,
+            'consistent': False,
+            'path_identity_stable': False,
+            'cursor_kind': None,
+            'temporarily_diverted': False,
+            'intent_end': None,
+            'route': None,
+            'next_waypoint': None,
+            'next_checkpoint': None,
+            'checkpoint_countdown': None,
+            'reason': ('sample_frame_missing' if sample_frame is None
+                       else 'sample_frame_mismatch'),
+            'historical': False,
+        }
 
 
 class SectionFloatWindow(QDialog):
@@ -1183,7 +1235,7 @@ class EnemyPollWorker(QThread):
             try:
                 channel.begin_frame_prefetch()
             except Exception:
-                # 与普通 batch_read 一致，由 poll_fast 报告 memsrv v4 错误。
+                # 与普通 batch_read 一致，由 poll_fast 报告 memsrv v5 错误。
                 pass
         try:
             snap = self.reader.poll_fast()
@@ -1212,7 +1264,7 @@ class EnemyPollWorker(QThread):
 
         if self.isInterruptionRequested():
             return snap
-        # v4 在设备内围绕整份常驻读取计划检查逻辑帧并原地重试，不再为帧尾
+        # v5 在设备内围绕整份常驻读取计划检查逻辑帧并原地重试，不再为帧尾
         # 守卫额外进行一次主机↔模拟器往返。
         guard = (channel.device_frame_guard()
                  if channel is not None
@@ -1284,7 +1336,7 @@ class EnemyPollWorker(QThread):
                     break
                 # 无论暂停还是运行中，起止逻辑帧不一致都说明本轮读取跨帧。
                 # 最多立即重读三次；仍跨帧时不发布，GUI 保留上一份完整帧。
-                # v4 在设备侧执行常驻计划并校验逻辑帧，通常一次即可完成。
+                # v5 在设备侧执行常驻计划并校验逻辑帧，通常一次即可完成。
                 frame_retries = 0
                 while (not snap.get('frame_consistent')
                        and frame_retries < 3
@@ -1322,6 +1374,17 @@ class EnemyPollWorker(QThread):
                          or snap.get('character_ok')))
                 if not suppress_inconsistent_snapshot:
                     self._publish_snapshot(snap)
+                else:
+                    # 路径列具有更严格的 fail-closed 契约：跨帧失败不能让 UI
+                    # 和 WebSocket 继续展示上一帧路线。发布一个仅用于失效提示
+                    # 的快照；其余表格数据仍由主线程保留最后一份完整帧。
+                    self._publish_snapshot({
+                        **snap,
+                        'ok': False,
+                        'character_ok': False,
+                        'pathing_invalidated': True,
+                        'msg': '路径同帧校验未通过，正在同步重试',
+                    })
 
                 next_deadline += self.interval
                 remaining = next_deadline - time.perf_counter()
@@ -2331,16 +2394,33 @@ class CoachWindow(QMainWindow):
         main.setSpacing(8)
 
         title_row = QHBoxLayout()
-        self.page_title = QLabel(
+        page_title_text = (
             f"明日方舟游戏数据显示工具 · {VERSION_LABEL} · 桌面版 "
             "Made by Tim(321346659)")
+        self.page_title = QLabel(page_title_text)
         self.page_title.setObjectName('PageTitle')
-        title_row.addWidget(self.page_title)
-        title_row.addStretch(1)
+        self.page_title.setSizePolicy(
+            QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Fixed)
+        self.page_title.setMinimumWidth(220)
+        self.page_title.setToolTip(page_title_text)
+        title_row.addWidget(self.page_title, 1)
+        main.addLayout(title_row)
+
+        # 顶部操作单独占一行，避免完整标题与全部按钮在窄窗口中互相挤出
+        # 可视区域。教程仍紧挨在 ADB 设置的正左侧。
+        title_actions_row = QHBoxLayout()
+        self._title_actions_row = title_actions_row
+        # 与 ADB 配置强相关的入口紧挨在“选择 ADB”左侧，首次使用无需先在
+        # 页面中寻找帮助区域。
+        self.btn_beginner_guide = QPushButton("新手教程")
+        self.btn_beginner_guide.setToolTip("查看首次连接 ADB、寻址和扫描的完整教程")
+        self.btn_beginner_guide.clicked.connect(self._show_beginner_guide)
+        self._style_secondary_button(self.btn_beginner_guide)
+        title_actions_row.addWidget(self.btn_beginner_guide)
         self.btn_select_adb = QPushButton("选择 ADB")
         self.btn_select_adb.clicked.connect(self._on_select_adb)
         self._style_secondary_button(self.btn_select_adb)
-        title_row.addWidget(self.btn_select_adb)
+        title_actions_row.addWidget(self.btn_select_adb)
         self._update_adb_button()
         self.btn_battle_cache_export = QPushButton("导出本局缓存")
         self.btn_battle_cache_export.setToolTip(
@@ -2349,31 +2429,32 @@ class CoachWindow(QMainWindow):
         self.btn_battle_cache_export.setEnabled(False)
         self.btn_battle_cache_export.clicked.connect(self._on_battle_cache_export)
         self._style_secondary_button(self.btn_battle_cache_export)
-        title_row.addWidget(self.btn_battle_cache_export)
+        title_actions_row.addWidget(self.btn_battle_cache_export)
         if self._diagnostic_log_window is not None:
             self.btn_diagnostic_log = QPushButton("诊断日志")
             self.btn_diagnostic_log.setToolTip(
                 "打开测试版实时日志窗口，并可一键打包排查信息")
             self.btn_diagnostic_log.clicked.connect(self._show_diagnostic_log)
             self._style_primary_button(self.btn_diagnostic_log)
-            title_row.addWidget(self.btn_diagnostic_log)
+            title_actions_row.addWidget(self.btn_diagnostic_log)
         self.btn_pin_top = QPushButton("窗口置顶")
         self.btn_pin_top.setCheckable(True)
         self.btn_pin_top.setToolTip("开启后窗口始终显示在最前")
         self.btn_pin_top.toggled.connect(self._on_toggle_stay_on_top)
         self._style_toggle_exec_button(self.btn_pin_top, checked=False)
-        title_row.addWidget(self.btn_pin_top)
+        title_actions_row.addWidget(self.btn_pin_top)
         btn_ws_info = QPushButton("接口说明")
         btn_ws_info.setToolTip("查看 WebSocket 接口地址与使用方式")
         btn_ws_info.clicked.connect(self._show_ws_info)
         self._style_secondary_button(btn_ws_info)
-        title_row.addWidget(btn_ws_info)
+        title_actions_row.addWidget(btn_ws_info)
         btn_timeline = QPushButton("排轴工具")
         btn_timeline.setToolTip("在内嵌网页中打开排轴工具（地图/出怪时间轴/操作回放）")
         btn_timeline.clicked.connect(self._on_open_timeline_tool)
         self._style_secondary_button(btn_timeline)
-        title_row.addWidget(btn_timeline)
-        main.addLayout(title_row)
+        title_actions_row.addWidget(btn_timeline)
+        title_actions_row.addStretch(1)
+        main.addLayout(title_actions_row)
         sub = QLabel("寻址工具读取游戏时间/逻辑帧；进入关卡后点「开始扫描」实时展示敌人数据。")
         sub.setProperty('role', 'muted')
         main.addWidget(sub)
@@ -2914,6 +2995,21 @@ class CoachWindow(QMainWindow):
     def _sync_system_theme(self) -> None:
         self._apply_theme(_system_prefers_dark())
 
+    def _show_beginner_guide(self) -> None:
+        """在应用内展示随程序分发的 Markdown 新手教程。"""
+        dlg = QDialog(self)
+        dlg.setWindowTitle("新手使用教程")
+        dlg.resize(900, 760)
+        layout = QVBoxLayout(dlg)
+        document = QTextBrowser()
+        document.setOpenExternalLinks(True)
+        document.setMarkdown(load_beginner_guide())
+        layout.addWidget(document, 1)
+        close_button = QPushButton("关闭")
+        close_button.clicked.connect(dlg.accept)
+        layout.addWidget(close_button, alignment=Qt.AlignmentFlag.AlignRight)
+        dlg.exec()
+
     def _show_ws_info(self) -> None:
         api = self._websocket_api
         if api is None or not api.status_snapshot().get('enabled'):
@@ -2958,6 +3054,7 @@ class CoachWindow(QMainWindow):
             '    "battle": {"rateHz": 20},\n'
             '    "stage": {"rateHz": 2},\n'
             '    "enemies": {"rateHz": 10},\n'
+            '    "enemy_pathing": {"rateHz": 30},\n'
             '    "characters": {"rateHz": 10},\n'
             '    "enemy_detail": {"scope": "all", "rateHz": 60},\n'
             '    "character_detail": {"scope": "selected", "ids": ["character-1"], "rateHz": 10},\n'
@@ -2974,6 +3071,7 @@ class CoachWindow(QMainWindow):
             "battle             默认 20Hz，范围 1–60Hz：战斗时间、逻辑帧、倍速、暂停、连接状态\n"
             "stage              默认 2Hz，范围 0.2–20Hz：关卡、地图与编队；变化合并后发送\n"
             "enemies            默认 10Hz，范围 1–20Hz：全体敌人基础状态、生命、位置、动作\n"
+            "enemy_pathing      默认 30Hz，范围 1–60Hz：同帧路线、路点、检查点与倒计时\n"
             "characters         默认 10Hz，范围 1–20Hz：干员/召唤物基础状态、技能和战斗统计\n"
             "enemy_detail       默认 2Hz，范围 0.2–60Hz：敌人属性、Buff、免疫、技能/行动详情\n"
             "character_detail   默认 2Hz，范围 0.2–60Hz：干员属性、Buff、天赋、技能详情\n"
@@ -3058,7 +3156,18 @@ class CoachWindow(QMainWindow):
             "    lifecycle: string，实体生命周期；alive: boolean，是否存活。\n"
             "    hp/maxHp: number|null，当前与最大生命。\n"
             "    position: object，m_posInLastFrame 实时坐标快照，含 x/y；action: object，当前公开动作状态。\n"
-            "    shield: number|null，护盾值；abnormalStatus: array，异常状态列表。\n\n"
+            "    shield: number|null，护盾值；abnormalStatus: array，异常状态列表。\n"
+            "    pathing: object，同一敌人当前公开路径快照；字段同下方 enemy_pathing。\n\n"
+            "E2. enemy_pathing.updated.data\n"
+            "  sampleFrame: integer|null，本批路径所属的游戏逻辑帧。\n"
+            "  consistent: boolean，设备侧帧守卫是否确认整批同帧。\n"
+            "  items: PathItem[]，每项只含稳定 id 与 pathing；绝不包含内存地址。\n"
+            "  pathing.available/consistent/pathIdentityStable: boolean，当前记录是否可安全使用。\n"
+            "  pathing.intentEnd/nextWaypoint: {row,col,label,...}|null，意图终点与下一格。\n"
+            "  pathing.route: object|null，含 kind/index/ordinal/label/matchedBy/runtimeModified。\n"
+            "  pathing.nextCheckpoint: object|null，含类型、目标、时间与显示标签。\n"
+            "  pathing.checkpointCountdown: object|null，seconds、frames、exact 与 source。\n"
+            "  available=false 时不得沿用上一帧路线；reason 会说明 pending、departed 或同步失败。\n\n"
             "F. characters.updated.data\n"
             "  items: Character[]，当前干员/召唤物列表；globalDamageSummary: object|null，全局伤害摘要。\n"
             "  Character 字段：\n"
@@ -3106,7 +3215,7 @@ class CoachWindow(QMainWindow):
             f'const ws = new WebSocket("{addr}/v1/game");\n'
             "ws.onopen = () => ws.send(JSON.stringify({\n"
             "  type: 'subscribe',\n"
-            "  topics: { battle: { rateHz: 20 }, enemies: { rateHz: 10 } }\n"
+            "  topics: { battle: { rateHz: 20 }, enemy_pathing: { rateHz: 30 } }\n"
             "}));\n"
             "ws.onmessage = (event) => console.log(JSON.parse(event.data));\n"
         )
@@ -5162,6 +5271,8 @@ class CoachWindow(QMainWindow):
             if msg and msg != getattr(self, '_last_snap_msg', None):
                 self._last_snap_msg = msg
                 _tlog("轮询:", msg)
+        # 在 WebSocket、最终缓存与表格消费前统一执行第二道帧号校验。
+        fail_closed_mismatched_enemy_pathing(snap)
         # 工作线程本身固定 60Hz 且信号只保留最新快照；这里不再做第二层
         # 时间阈值节流，否则 16.7ms 附近的轻微抖动会误跳成约 30Hz。
         now = time.time()
@@ -5266,6 +5377,9 @@ class CoachWindow(QMainWindow):
             # 清空既是假信息又会引起闪烁), 只在状态栏报告, 下帧成功即恢复。
             self.lbl_enemy_status.setText(
                 f"读取: {read_mode}   {snap.get('msg') or '数据链失效'}")
+            if snap.get('pathing_invalidated') or not snap.get(
+                    'frame_consistent', True):
+                self._invalidate_enemy_pathing_cells()
         characters = list(snap.get('characters', ()))
         history = snap.get('character_stats_history')
         if history is not None:
@@ -5410,6 +5524,32 @@ class CoachWindow(QMainWindow):
             item.setText(text)
             item.setToolTip(text)
 
+    def _invalidate_enemy_pathing_cells(self) -> None:
+        """立即撤下路径文字，禁止跨帧失败时沿用上一份有效路线。"""
+        for enemy in self._enemy_last:
+            if getattr(enemy, 'lifecycle', 'active') != 'active':
+                continue
+            previous = getattr(enemy, 'pathing', None)
+            sample_frame = (previous.get('sample_frame', previous.get(
+                'sampleFrame')) if isinstance(previous, dict) else None)
+            enemy.pathing = {
+                'available': False, 'sample_frame': sample_frame,
+                'consistent': False, 'path_identity_stable': False,
+                'cursor_kind': None, 'temporarily_diverted': False,
+                'intent_end': None, 'route': None, 'next_waypoint': None,
+                'next_checkpoint': None, 'checkpoint_countdown': None,
+                'reason': 'frame_inconsistent', 'historical': False,
+            }
+        if not hasattr(self, 'enemy_table'):
+            return
+        for row_key, row in self._enemy_rows.items():
+            for key in PATHING_COLUMN_KEYS:
+                self._enemy_cell_state[(row_key, key)] = ('同步重试', False)
+                item = self.enemy_table.item(row, ENEMY_COLUMN_INDEX[key])
+                if item is not None:
+                    item.setText('同步重试')
+                    item.setToolTip('当前帧路径身份变化，正在设备侧同帧重试')
+
     def _on_enemy_precision(self) -> None:
         dlg = EnemyPrecisionDialog(
             self._module_dialog_parent(self.box_enemy),
@@ -5452,11 +5592,14 @@ class CoachWindow(QMainWindow):
         # 剩余空间优先分给这些信息列；内容过宽时除血量外均可压到可读下限。
         expanding_keys = {
             'name', 'code', 'eid', 'abnormal_status', 'immune_status',
-            'skill', 'spawn_wait', 'precise_pos',
+            'skill', 'spawn_wait', 'precise_pos', 'current_route',
+            'next_checkpoint',
         }
         minimum_by_key = {
             'row': 38, 'name': 64, 'code': 56, 'eid': 105, 'hp': 175,
             'pos': 92, 'precise_pos': 105, 'action_state': 66,
+            'intent_end': 76, 'current_route': 96, 'next_waypoint': 72,
+            'next_checkpoint': 105, 'checkpoint_countdown': 112,
             'abnormal_status': 82,
             'immune_status': 82, 'skill': 72, 'life_status': 66,
             'spawn_wait': 72, 'detail': 62,
@@ -5466,6 +5609,8 @@ class CoachWindow(QMainWindow):
         maximum_by_key = {
             'row': 46, 'name': 190, 'code': 90, 'eid': 240, 'hp': 245,
             'pos': 135, 'precise_pos': 155, 'action_state': 100,
+            'intent_end': 165, 'current_route': 260, 'next_waypoint': 150,
+            'next_checkpoint': 300, 'checkpoint_countdown': 190,
             'abnormal_status': 240,
             'immune_status': 240, 'skill': 260, 'life_status': 100,
             'spawn_wait': 280, 'detail': 78,
@@ -5631,7 +5776,9 @@ class CoachWindow(QMainWindow):
                 tbl.setItem(row, c, it)
         row_col = ENEMY_COLUMN_INDEX['row']
         tbl.item(row, row_col).setData(Qt.UserRole, roster_id)
-        for key in ('name', 'eid', 'skill', 'abnormal_status', 'immune_status'):
+        for key in (
+                'name', 'eid', 'skill', 'abnormal_status', 'immune_status',
+                'current_route', 'next_checkpoint'):
             item = tbl.item(row, ENEMY_COLUMN_INDEX[key])
             if item:
                 item.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)

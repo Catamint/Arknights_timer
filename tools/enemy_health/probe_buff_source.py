@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Buff 来源实体 + blackboard 键诊断探针（只读，使用 memsrv v4）
+"""Buff 来源实体 + blackboard 键诊断探针（只读，使用 memsrv v5）
 
 用法: python tools/enemy_health/probe_buff_source.py [秒数] [adb serial]
 在关卡内运行, 周期性读取所有敌人 buff:

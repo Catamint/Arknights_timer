@@ -1,6 +1,6 @@
 """明日方舟 代理作战序列 / 实时操作日志 内存读取器
 
-内存通道: tools/enemy_health/memcore.py (adb + memsrv v4 读 Android 进程
+内存通道: tools/enemy_health/memcore.py (adb + memsrv v5 读 Android 进程
 /proc/<pid>/mem)。游戏指针是 Android 进程虚拟地址, 必须在设备侧读取,
 宿主机直接读模拟器进程内存无法解引用指针 (旧 pymem 方案不可行的根因)。
 
@@ -43,7 +43,7 @@
   3. 优先读取现网实测 BattleController.m_logger, 并以
      BattleLogger.m_controller 反向指针、List<LogItem> 结构完成强校验
   4. 若当前版本字段漂移, 在 BC 小范围字段区内搜索 BattleLogger
-5. 类扫描未定位到对象时，才使用 memsrv v4 完整 GC 堆快照算法
+5. 类扫描未定位到对象时，才使用 memsrv v5 完整 GC 堆快照算法
 
 后端嵌入:
   reader.set_stage_callback(on_stage)  # 阶段 1 完成即回调 dict
@@ -343,19 +343,19 @@ class DeployTrackerReader:
             return None
 
     def _get_channel(self):
-        """返回部署追踪器独占的 memsrv v4 批量读取通道。
+        """返回部署追踪器独占的 memsrv v5 批量读取通道。
         端口 27273: 与敌人监控 (27271) / RNG (27272) 通道共存时互不干扰。"""
         if self._channel is None:
             ch = TcpChannel(self.mc, read_timeout=30.0, port=27273)
             ch.open()
-            if ch.srv_version != 4:
+            if ch.srv_version != TcpChannel.PROTOCOL_VERSION:
                 ch.close()
-                raise RuntimeError("部署追踪仅支持 memsrv v4")
+                raise RuntimeError("部署追踪仅支持 memsrv v5")
             self._channel = ch
         return self._channel
 
     def _read_many(self, requests):
-        """通过 memsrv v4 批量读取 [(addr, size)]；通道异常直接上抛。"""
+        """通过 memsrv v5 批量读取 [(addr, size)]；通道异常直接上抛。"""
         ch = self._get_channel()
         return ch.batch_read(requests)
 
@@ -409,7 +409,7 @@ class DeployTrackerReader:
             return ""
 
     def _device_scan_regions(self, regions, needles):
-        """使用 memsrv v4 在设备侧扫描，只回传命中地址。"""
+        """使用 memsrv v5 在设备侧扫描，只回传命中地址。"""
         ch = self._get_channel()
         needles = list(dict.fromkeys(needles))
         out = {nd: [] for nd in needles}
@@ -706,7 +706,7 @@ class DeployTrackerReader:
             self._status(f"读取 maps 失败: {exc}")
             return False
 
-        # memsrv v4 可在设备侧按 klass 指针精确扫描，通常十几秒即可定位，且
+        # memsrv v5 可在设备侧按 klass 指针精确扫描，通常十几秒即可定位，且
         # 零日志可用。类扫描没有找到有效对象时，再换用完整堆快照定位算法。
         try:
             if self._locate_via_device_class_scan():

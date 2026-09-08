@@ -411,7 +411,8 @@ class CharacterReader:
         missing = [info for info in infos.values()
                    if info.addr not in self._attr_cached and self.mc.is_ptr(info.attr_ptr)]
         for info, data in zip(
-                missing, self._batch([(x.attr_ptr, 0x60) for x in missing])):
+                missing, self._batch([
+                    (x.attr_ptr, gs.AttributesFields.READ_SIZE) for x in missing])):
             ptr = _u64(data, gs.AttributesFields.M_CACHED_DATA) if data else 0
             if self.mc.is_ptr(ptr):
                 self._attr_cached[info.addr] = ptr
@@ -444,7 +445,8 @@ class CharacterReader:
                 missing.append((addr, info.attr_ptr))
         combo_mgrs = {}
         for (addr, _), data in zip(
-                missing, self._batch([(ptr, 0x40) for _, ptr in missing])):
+                missing, self._batch([
+                    (ptr, gs.AttributesFields.READ_SIZE) for _, ptr in missing])):
             if not data:
                 continue
             rp = self._runtime_ptrs[addr]
@@ -1861,7 +1863,8 @@ class CharacterReader:
             self.core._names[addr] = (info.cid, info.name, '')
 
             if self.mc.is_ptr(info.attr_ptr):
-                (attr_head,) = self.core._detail_batch_read([(info.attr_ptr, 0x60)])
+                (attr_head,) = self.core._detail_batch_read(
+                    [(info.attr_ptr, gs.AttributesFields.READ_SIZE)])
                 if attr_head:
                     raw_ptr = _u64(attr_head, gs.AttributesFields.M_RAW_DATA)
                     cached_ptr = _u64(attr_head, gs.AttributesFields.M_CACHED_DATA)

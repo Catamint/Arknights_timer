@@ -95,8 +95,8 @@ class EnemyUiTests(unittest.TestCase):
         self.assertEqual(
             _format_enemy_read_mode({
                 'read_mode': 'fast', 'read_backend': 'srv',
-            'memsrv_version': 4}),
-            '设备快照（memsrv v4）')
+            'memsrv_version': 5}),
+            '设备快照（memsrv v5）')
         self.assertEqual(
             _format_enemy_read_mode({'read_mode': 'fast', 'read_backend': 'sh'}),
             '检测中')

@@ -62,6 +62,11 @@ SELECTOR_TRIGGER_TYPES = frozenset({
     'SelectorTriggerWithCertainCondition',
 })
 
+ROUTE_CHECKPOINT_TYPE_NAMES = {
+    value: name for name, value in vars(gs.RouteCheckpointType).items()
+    if name.isupper() and isinstance(value, int)
+}
+
 
 def _custom_shield_rule(enemy_id='', buff_key=''):
     key = (buff_key or '').lower()
@@ -185,6 +190,30 @@ def countdown_text(action):
     return kind or '条件驱动'
 
 
+def unavailable_pathing(reason='not_sampled', sample_frame=None, *, historical=False):
+    """Create a fresh fail-closed path snapshot.
+
+    Route data is never carried forward for a live enemy.  Callers may preserve
+    a departed enemy's last value only after marking it historical and no
+    longer available as a real-time sample.
+    """
+    return {
+        'available': False,
+        'sample_frame': sample_frame,
+        'consistent': False,
+        'path_identity_stable': False,
+        'cursor_kind': None,
+        'temporarily_diverted': False,
+        'intent_end': None,
+        'route': None,
+        'next_waypoint': None,
+        'next_checkpoint': None,
+        'checkpoint_countdown': None,
+        'reason': str(reason or 'not_sampled'),
+        'historical': bool(historical),
+    }
+
+
 class _HeapSnapshot:
     """首次扫描的堆快照: 第 1 遍扫描边扫边落盘, 后续各遍从本地磁盘读。
 
@@ -246,7 +275,7 @@ class EnemyInfo:
                  'lifecycle', 'planned', 'spawn_eta', 'spawn_condition',
                  'spawn_kind', 'spawn_source', 'is_summon', 'action_ptr', 'action',
                  'skills_detail', 'current_tile_ptr', 'spawn_frame', 'end_frame',
-                 'end_reason')
+                 'end_reason', 'pathing')
 
     def __init__(self, addr):
         self.addr = addr
@@ -322,6 +351,8 @@ class EnemyInfo:
         self.spawn_frame = None
         self.end_frame = None
         self.end_reason = ''
+        # 每个 EnemyInfo 都有独立的新对象；活体读取失败时绝不沿用上一帧路径。
+        self.pathing = unavailable_pathing('pending' if not addr else 'not_sampled')
         # m_currentTile 原始指针 (未校验): 非空且是合法指针 = 实体正站在地图
         # 格子上, 是「已出场」的硬性信号, 优先级高于路线投影估算。
         self.current_tile_ptr = 0
@@ -422,7 +453,7 @@ class EnemyReader:
         self.cache_file = cache_file
         self.with_bc = with_bc
         self.log = log
-        self.workers = workers          # 完整快照解析并发数（读取统一走 memsrv v4）
+        self.workers = workers          # 完整快照解析并发数（读取统一走 memsrv v5）
         self.diagnostics = bool(diagnostics)
         self._identity_diag_signature = None
         self._identity_diag_ts = 0.0
@@ -465,7 +496,7 @@ class EnemyReader:
         self._scheduler_time_snap = None  # BattleController.s_fixedPlayTime
         self._attr_ptrs = {}          # enemy addr -> Attributes* (属性轮换读取用)
         self._chan_fail = 0           # 通道连续异常计数 (日志节流)
-        self._poll_stop = threading.Event()  # GUI 停止时中断 memsrv v4 读取
+        self._poll_stop = threading.Event()  # GUI 停止时中断 memsrv v5 读取
         self._skill_lp = {}           # enemy addr -> m_skills List* (主块内提取)
         self._skill_ap = {}           # enemy addr -> m_allSkills EnemySkill[]*
         self._skill_source_layout = {} # (enemy, active/all) -> ptr/items/count
@@ -514,6 +545,10 @@ class EnemyReader:
         self._route_meta = {}           # routeIndex -> 起点/首个进场路线点
         self._routes_export = []        # 完整路线（供排轴前端绘图）
         self._main_route_count = 0      # 主路线数组原始长度（extra 路线顺延编号）
+        self._route_by_object = {}      # runtime Route* -> 静态路线元数据
+        self._route_by_data = {}        # RouteData* -> 静态路线元数据
+        self._route_by_checkpoint_array = {} # CheckpointData[]* -> 静态路线元数据
+        self._route_by_fingerprint = {} # 完整不可变结构指纹 -> [路线元数据]
         self._level_map_data = {}       # 当前关卡地图（纯 JSON 数据）
         self._level_enemy_meta = {}     # enemy key -> 静态移速/delayToBorn
 
@@ -1034,6 +1069,11 @@ class EnemyReader:
         self._route_meta = {}
         self._routes_export = []
         self._main_route_count = 0
+        self._route_by_object = {}
+        self._route_by_data = {}
+        self._route_by_checkpoint_array = {}
+        self._route_by_fingerprint = {}
+        static_routes = {}
         checkpoint_names = {
             value: name for name, value in vars(gs.RouteCheckpointType).items()
             if name.isupper() and isinstance(value, int)
@@ -1060,8 +1100,10 @@ class EnemyReader:
                          _i32(block, gs.RouteDataFields.START_POSITION + 4))
                 end = (_i32(block, gs.RouteDataFields.END_POSITION),
                        _i32(block, gs.RouteDataFields.END_POSITION + 4))
+                checkpoint_array_ptr = _u64(
+                    block, gs.RouteDataFields.CHECKPOINTS)
                 checkpoints = self._read_object_array(
-                    _u64(block, gs.RouteDataFields.CHECKPOINTS), 4096)
+                    checkpoint_array_ptr, 4096)
                 cp_blocks = self._detail_batch_read([
                     (cp, gs.RouteCheckpointFields.READ_SIZE) for cp in checkpoints])
                 entry = None
@@ -1096,7 +1138,7 @@ class EnemyReader:
                             fixed_wait += wait
                 motion_mode = _i32(block, gs.RouteDataFields.MOTION_MODE)
                 diagonal = bool(block[gs.RouteDataFields.ALLOW_DIAGONAL_MOVE])
-                self._routes_export.append({
+                exported_route = {
                     'index': route_index,
                     'isExtra': is_extra,
                     'motionMode': motion_mode,
@@ -1114,7 +1156,26 @@ class EnemyReader:
                     },
                     'allowDiagonalMove': diagonal,
                     'checkpoints': exported_checkpoints,
-                })
+                }
+                self._routes_export.append(exported_route)
+                array_index = slot
+                route_meta = {
+                    'kind': 'extra' if is_extra else 'main',
+                    'index': array_index,
+                    'ordinal': array_index + 1,
+                    'global_index': route_index,
+                    'start': start,
+                    'end': end,
+                    'route_data_ptr': _route_ptr,
+                }
+                fingerprint = self._route_fingerprint(exported_route)
+                route_meta['fingerprint'] = fingerprint
+                static_routes[(is_extra, array_index)] = route_meta
+                self._route_by_data[_route_ptr] = route_meta
+                if self.mc.is_ptr(checkpoint_array_ptr):
+                    self._route_by_checkpoint_array[
+                        checkpoint_array_ptr] = route_meta
+                self._route_by_fingerprint.setdefault(fingerprint, []).append(route_meta)
                 if entry is None:
                     continue
                 row_delta = entry[0] - start[0]
@@ -1126,6 +1187,65 @@ class EnemyReader:
                         'start': start, 'entry': entry, 'distance': distance,
                         'fixed_wait': fixed_wait, 'diagonal': diagonal,
                     }
+
+        # LevelData only contains RouteData[].  Match the corresponding
+        # Map.m_routes/m_extraRoutes Route objects once so the hot path can
+        # classify the exact current Route pointer without another device read.
+        map_ptr = self._read_ptr(
+            self.bc_addr + gs.BattleControllerFields.MAP) \
+            if self.mc.is_ptr(self.bc_addr) else 0
+        map_block = self._detail_batch_read([(map_ptr, gs.MapFields.READ_SIZE)])[0] \
+            if self.mc.is_ptr(map_ptr) else None
+        if not map_block:
+            return
+        for is_extra, offset in (
+                (False, gs.MapFields.M_ROUTES),
+                (True, gs.MapFields.M_EXTRA_ROUTES)):
+            array_ptr = _u64(map_block, offset)
+            slots, _count = self._read_object_array_slots(array_ptr, 4096)
+            route_blocks = self._detail_batch_read([
+                (route_ptr, gs.RouteFields.READ_SIZE) for _slot, route_ptr in slots])
+            for (slot, route_ptr), route_block in zip(slots, route_blocks):
+                if not route_block:
+                    continue
+                meta = static_routes.get((is_extra, slot))
+                if meta is None:
+                    continue
+                self._route_by_object[route_ptr] = meta
+                data_ptr = _u64(route_block, gs.RouteFields.M_DATA)
+                if self.mc.is_ptr(data_ptr):
+                    self._route_by_data.setdefault(data_ptr, meta)
+
+    @staticmethod
+    def _route_fingerprint(route):
+        """Stable full-route fingerprint used only for static/clone matching."""
+        def finite(value):
+            try:
+                value = float(value)
+            except (TypeError, ValueError):
+                return None
+            return round(value, 6) if math.isfinite(value) else None
+
+        checkpoints = []
+        for cp in route.get('checkpoints') or ():
+            position = cp.get('position') or {}
+            reach = cp.get('reachOffset') or {}
+            checkpoints.append((
+                int(cp.get('type', -1)), finite(cp.get('time')),
+                int(position.get('row', 0)), int(position.get('col', 0)),
+                finite(reach.get('x')), finite(reach.get('y')),
+                bool(cp.get('randomizeReachOffset', False)),
+                finite(cp.get('reachDistance')),
+            ))
+        start = route.get('start') or {}
+        end = route.get('end') or {}
+        return (
+            int(route.get('motionMode', -1)),
+            int(start.get('row', 0)), int(start.get('col', 0)),
+            int(end.get('row', 0)), int(end.get('col', 0)),
+            bool(route.get('allowDiagonalMove', False)),
+            tuple(checkpoints),
+        )
 
     def _load_scheduler_enemy_meta(self):
         """补读 prefab 的 delayToBorn；该值不在 LevelData.EnemyData 中。"""
@@ -1261,6 +1381,10 @@ class EnemyReader:
 
     def _load_spawn_plan(self):
         """解析固定 waves、条件 branches 和仅由事件/召唤使用的敌人类型。"""
+        self._route_by_object = {}
+        self._route_by_data = {}
+        self._route_by_checkpoint_array = {}
+        self._route_by_fingerprint = {}
         if not self.bc_addr:
             self._level_map_data = {}
             self._routes_export = []
@@ -1515,6 +1639,10 @@ class EnemyReader:
             if old is not None:
                 old.lifecycle = 'departed'
                 old.alive = False
+                last_path = dict(old.pathing or unavailable_pathing('departed'))
+                last_path.update(
+                    available=False, historical=True, reason='departed')
+                old.pathing = last_path
                 old.end_frame = (int(self._fixed_frame_snap)
                                  if self._fixed_frame_snap is not None else None)
                 reason_source = departure or old
@@ -2398,7 +2526,8 @@ class EnemyReader:
                 self._attr_cache.pop(ep, None)
                 cd = None
         if cd is None:
-            ab = self.mc.read(attrp, 0x60) if self.mc.is_ptr(attrp) else None
+            ab = self.mc.read(attrp, gs.AttributesFields.READ_SIZE) \
+                if self.mc.is_ptr(attrp) else None
             cdp2 = _u64(ab, gs.AttributesFields.M_CACHED_DATA) if ab else 0
             if cdp2 and self.mc.is_ptr(cdp2):
                 cd2 = self.mc.read(
@@ -3949,7 +4078,7 @@ class EnemyReader:
         self._fill_skills(ep, blk, info)
         if with_runtime:
             if self._chan is None:
-                raise RuntimeError('memsrv v4 主通道尚未建立')
+                raise RuntimeError('memsrv v5 主通道尚未建立')
             self._refresh_runtime_chan([ep], {ep: info})
         return info
 
@@ -3979,7 +4108,7 @@ class EnemyReader:
     def poll_fast(self):
         """完整 60Hz 轮询：每帧读取容器、属性、状态、技能、动画与 BC。
 
-        memsrv v4 是唯一读取后端；通道异常直接上抛并停止发布快照。
+        memsrv v5 是唯一读取后端；通道异常直接上抛并停止发布快照。
         """
         if self._poll_stop.is_set():
             raise InterruptedError('敌人轮询已请求停止')
@@ -3990,7 +4119,8 @@ class EnemyReader:
             snap['read_mode'] = 'fast'
             snap['read_backend'] = 'srv'
             snap['memsrv_version'] = getattr(self._chan, 'srv_version', 0)
-            snap['strict_60hz'] = self._chan.srv_version == 4
+            snap['strict_60hz'] = (
+                self._chan.srv_version == TcpChannel.PROTOCOL_VERSION)
             self._chan_fail = 0
             return snap
         except Exception as e:
@@ -3998,9 +4128,9 @@ class EnemyReader:
                 raise InterruptedError('敌人轮询已请求停止') from e
             self._chan_fail += 1
             if self._chan_fail <= 3 or self._chan_fail % 50 == 0:
-                self.log(f'[轮询] memsrv v4 异常 ({type(e).__name__}: {e})')
+                self.log(f'[轮询] memsrv v5 异常 ({type(e).__name__}: {e})')
             self.close()
-            raise RuntimeError(f'memsrv v4 读取失败: {e}') from e
+            raise RuntimeError(f'memsrv v5 读取失败: {e}') from e
 
     @staticmethod
     def _cluster_ptrs(ptrs, gap=0x10000):
@@ -4017,7 +4147,7 @@ class EnemyReader:
         return clusters
 
     def _poll_clusters(self, ptrs):
-        """memsrv v4 精确读取每个对象。"""
+        """memsrv v5 精确读取每个对象。"""
         return [[ptr] for ptr in ptrs]
 
     def _refill_failed_reads(self, reqs, results):
@@ -4062,7 +4192,8 @@ class EnemyReader:
         attr_eps = [ep for ep in missing
                     if self.mc.is_ptr(self._runtime_ptrs[ep].get('attr_obj', 0))]
         if attr_eps:
-            reqs = [(self._runtime_ptrs[ep]['attr_obj'], 0x40) for ep in attr_eps]
+            reqs = [(self._runtime_ptrs[ep]['attr_obj'],
+                     gs.AttributesFields.READ_SIZE) for ep in attr_eps]
             combo_mgrs = {}
             for ep, data in zip(attr_eps, self._chan.batch_read(reqs)):
                 if not data:
@@ -4380,6 +4511,400 @@ class EnemyReader:
             if info is not None:
                 self._copy_runtime(info, runtime[ep])
 
+    @staticmethod
+    def _grid_coord(row, col, source=None):
+        """Return a public grid coordinate without exposing runtime addresses."""
+        row, col = int(row), int(col)
+        if 0 <= row < 26 and col >= 0:
+            label = f'{chr(ord("A") + row)}{col + 1}'
+        else:
+            label = f'({row},{col})'
+        value = {'row': row, 'col': col, 'label': label}
+        if source:
+            value['source'] = source
+        return value
+
+    @staticmethod
+    def _valid_grid(row, col):
+        # GridPosition 的负数是无效/未定位哨兵；路线与检查点的公开目标必须
+        # 是可表示的非负格子，不能把 (-1,-1) 格式化成貌似有效的坐标。
+        return 0 <= int(row) <= 128 and 0 <= int(col) <= 128
+
+    def _grid_tile_category(self, row, col):
+        """Classify a GridPosition against the map's top-based tile matrix."""
+        level_map = self._level_map_data or {}
+        rows, cols = int(level_map.get('rows') or 0), int(
+            level_map.get('cols') or 0)
+        map_row = rows - 1 - int(row)  # GridPosition row 0 is the bottom row.
+        col = int(col)
+        if not (0 <= map_row < rows and 0 <= col < cols):
+            return None
+        tiles = level_map.get('tiles') or ()
+        index = map_row * cols + col
+        tile = tiles[index] if 0 <= index < len(tiles) else None
+        if not isinstance(tile, dict):
+            return None
+        key = str(tile.get('tileKey') or tile.get('key') or '').lower()
+        if key in ('tile_end', 'tile_allygoal'):
+            return 'friendly_goal'
+        if key in ('tile_start', 'tile_flystart', 'tile_enemygoal'):
+            return 'enemy_spawn'
+        return key or None
+
+    @staticmethod
+    def _path_identity(enemy, cursor, route, route_data, cp_array,
+                       cp_ptr_data, checkpoint, checkpoint_data):
+        """Fields that must not change while a guarded path record is read."""
+        if not all((enemy, cursor, route, route_data, cp_array)):
+            return None
+        enemy_cursor = _u64(enemy, 0)
+        checkpoint_ptr = _u64(cp_ptr_data, 0) if cp_ptr_data else 0
+        return (
+            enemy_cursor,
+            _u64(enemy, gs.EnemyFields.M_CACHED_ROUTE - gs.EnemyFields.M_CURSOR),
+            _i32(enemy, gs.EnemyFields.M_CACHED_CURSOR_INDEX - gs.EnemyFields.M_CURSOR),
+            _u64(enemy, gs.EnemyFields.M_TRACE_TARGET_CURSOR - gs.EnemyFields.M_CURSOR),
+            _i32(enemy, gs.EnemyFields.ROUTE_END_POS - gs.EnemyFields.M_CURSOR),
+            _i32(enemy, gs.EnemyFields.ROUTE_END_POS - gs.EnemyFields.M_CURSOR + 4),
+            _u64(cursor, gs.BasicCursorFields.M_ROUTE),
+            _i32(cursor, gs.BasicCursorFields.M_CURSOR),
+            _u64(cursor, gs.BasicCursorFields.M_CHECKPOINTS),
+            _u64(cursor, gs.BasicCursorFields.SNAPSHOT
+                 + gs.SchedulerSnapshotFields.WAVE_START_TIME),
+            _u64(cursor, gs.BasicCursorFields.SNAPSHOT
+                 + gs.SchedulerSnapshotFields.FRAGMENT_START_TIME),
+            _i32(cursor, gs.DirectionCursorFields.M_NEXT_GRID),
+            _i32(cursor, gs.DirectionCursorFields.M_NEXT_GRID + 4),
+            _u64(route, gs.RouteFields.M_DATA),
+            _i32(route_data, gs.RouteDataFields.START_POSITION),
+            _i32(route_data, gs.RouteDataFields.START_POSITION + 4),
+            _i32(route_data, gs.RouteDataFields.END_POSITION),
+            _i32(route_data, gs.RouteDataFields.END_POSITION + 4),
+            _u64(route_data, gs.RouteDataFields.CHECKPOINTS),
+            int(_u32(cp_array, gs.Il2CppArray.MAX_LENGTH)),
+            checkpoint_ptr,
+            _u64(checkpoint, gs.RuntimeCheckpointFields.DATA) if checkpoint else 0,
+            _u64(checkpoint, gs.WaitForSecondsCheckpointFields.M_TIME)
+            if checkpoint else 0,
+            bytes(checkpoint_data) if checkpoint_data else b'',
+        )
+
+    @staticmethod
+    def _append_path_chain(operations, enemy_addr):
+        """Append one complete device-side pointer walk and return result indexes."""
+        path_start = gs.EnemyFields.M_CURSOR
+        path_size = gs.EnemyFields.ROUTE_END_POS + 8 - path_start
+        out = {}
+        out['enemy'] = len(operations)
+        operations.append(('direct', enemy_addr + path_start, path_size))
+        out['cursor'] = len(operations)
+        operations.append(('deref', out['enemy'], 0, 0,
+                           gs.DirectionCursorFields.READ_SIZE))
+        out['route'] = len(operations)
+        operations.append(('deref', out['cursor'], gs.BasicCursorFields.M_ROUTE,
+                           0, gs.RouteFields.READ_SIZE))
+        out['route_data'] = len(operations)
+        operations.append(('deref', out['route'], gs.RouteFields.M_DATA,
+                           0, gs.RouteDataFields.READ_SIZE))
+        out['cp_array'] = len(operations)
+        operations.append(('deref', out['cursor'],
+                           gs.BasicCursorFields.M_CHECKPOINTS, 0,
+                           gs.Il2CppArray.ITEMS))
+        out['cp_ptr'] = len(operations)
+        operations.append(('array_ptr', out['cursor'],
+                           gs.BasicCursorFields.M_CHECKPOINTS,
+                           gs.BasicCursorFields.M_CURSOR))
+        out['checkpoint'] = len(operations)
+        operations.append(('deref', out['cp_ptr'], 0, 0,
+                           gs.RuntimeCheckpointFields.READ_SIZE))
+        out['checkpoint_data'] = len(operations)
+        operations.append(('deref', out['checkpoint'],
+                           gs.RuntimeCheckpointFields.DATA, 0,
+                           gs.RouteCheckpointFields.READ_SIZE))
+        return out
+
+    def _build_path_transaction(self, ptrs):
+        operations = []
+        clock = len(operations)
+        clock_size = (gs.BattleControllerStaticFields.DELTA_PLAY_TIME_FP
+                      - gs.BattleControllerStaticFields.FIXED_FRAME_COUNT + 8)
+        operations.append((
+            'direct',
+            self._bc_static_fields
+            + gs.BattleControllerStaticFields.FIXED_FRAME_COUNT,
+            clock_size,
+        ))
+        layouts = {}
+        for enemy_addr in ptrs:
+            first = self._append_path_chain(operations, enemy_addr)
+            second = self._append_path_chain(operations, enemy_addr)
+            layouts[enemy_addr] = (first, second)
+        return operations, clock, layouts
+
+    @staticmethod
+    def _path_results(results, layout):
+        return tuple(results[layout[name]] for name in (
+            'enemy', 'cursor', 'route', 'route_data', 'cp_array', 'cp_ptr',
+            'checkpoint', 'checkpoint_data'))
+
+    def _match_runtime_route(self, route_ptr, route_data_ptr,
+                             checkpoint_array_ptr, cached_route_ptr,
+                             start, end):
+        meta = self._route_by_object.get(route_ptr)
+        matched_by = 'route_object' if meta else ''
+        if meta is None:
+            meta = self._route_by_data.get(route_data_ptr)
+            matched_by = 'route_data' if meta else ''
+        if meta is None:
+            meta = self._route_by_checkpoint_array.get(checkpoint_array_ptr)
+            matched_by = 'checkpoint_array' if meta else ''
+        runtime_modified = False
+        if meta is None:
+            meta = self._route_by_object.get(cached_route_ptr)
+            if meta is not None:
+                matched_by = 'cached_route'
+                runtime_modified = True
+        if meta is None:
+            return {
+                'kind': 'runtime', 'index': None, 'ordinal': None,
+                'global_index': None,
+                'label': f'运行时路线（{self._grid_coord(*start)["label"]}→'
+                         f'{self._grid_coord(*end)["label"]}）',
+                'matched_by': 'unmatched', 'runtime_modified': True,
+            }
+        runtime_modified = (
+            runtime_modified
+            or route_data_ptr != meta.get('route_data_ptr')
+            or tuple(start) != tuple(meta['start'])
+            or tuple(end) != tuple(meta['end'])
+        )
+        prefix = '主' if meta['kind'] == 'main' else '额外'
+        return {
+            'kind': meta['kind'], 'index': meta['index'],
+            'ordinal': meta['ordinal'], 'global_index': meta['global_index'],
+            'label': f'{prefix}#{meta["ordinal"]}（'
+                     f'{self._grid_coord(*start)["label"]}→'
+                     f'{self._grid_coord(*end)["label"]}）',
+            'matched_by': matched_by, 'runtime_modified': runtime_modified,
+        }
+
+    def _format_checkpoint(self, index, count, checkpoint_data, intent_end):
+        if index == count:
+            label = f'前往终点{intent_end["label"]}' if intent_end else '前往路线终点'
+            return {
+                'index': index, 'ordinal': index + 1, 'type': None,
+                'type_name': 'ROUTE_END', 'label': label,
+                'target': intent_end, 'time': None,
+            }
+        if not checkpoint_data:
+            return None
+        cp_type = _i32(checkpoint_data, gs.RouteCheckpointFields.TYPE)
+        cp_time = self._finite_float(checkpoint_data, gs.RouteCheckpointFields.TIME)
+        row = _i32(checkpoint_data, gs.RouteCheckpointFields.POSITION)
+        col = _i32(checkpoint_data, gs.RouteCheckpointFields.POSITION + 4)
+        target = self._grid_coord(row, col) if self._valid_grid(row, col) else None
+        target_label = target['label'] if target else '未知格'
+        labels = {
+            gs.RouteCheckpointType.MOVE: f'移动至{target_label}',
+            gs.RouteCheckpointType.WAIT_FOR_SECONDS: f'原地等待{cp_time:.2f}秒',
+            gs.RouteCheckpointType.WAIT_FOR_PLAY_TIME:
+                f'等待战斗时间至{cp_time:.2f}秒',
+            gs.RouteCheckpointType.WAIT_CURRENT_FRAGMENT_TIME:
+                f'等待当前片段至{cp_time:.2f}秒',
+            gs.RouteCheckpointType.WAIT_CURRENT_WAVE_TIME:
+                f'等待当前波次至{cp_time:.2f}秒',
+            gs.RouteCheckpointType.DISAPPEAR: '进入隐藏/传送阶段',
+            gs.RouteCheckpointType.APPEAR_AT_POS: f'出现于{target_label}',
+            gs.RouteCheckpointType.ALERT: '警戒条件',
+            gs.RouteCheckpointType.PATROL_MOVE: f'巡逻移动至{target_label}',
+            gs.RouteCheckpointType.WAIT_BOSSRUSH_WAVE: '等待BossRush波次',
+            gs.RouteCheckpointType.MAP_OFFSET_MOVE: f'地图偏移移动至{target_label}',
+            gs.RouteCheckpointType.INVALID: '无效检查点',
+        }
+        return {
+            'index': index, 'ordinal': index + 1, 'type': cp_type,
+            'type_name': ROUTE_CHECKPOINT_TYPE_NAMES.get(
+                cp_type, f'UNKNOWN_{cp_type}'),
+            'label': labels.get(cp_type, f'未知检查点({cp_type})'),
+            'target': target if cp_type in (
+                gs.RouteCheckpointType.MOVE,
+                gs.RouteCheckpointType.APPEAR_AT_POS,
+                gs.RouteCheckpointType.PATROL_MOVE,
+                gs.RouteCheckpointType.MAP_OFFSET_MOVE) else None,
+            'time': cp_time if cp_type in (
+                gs.RouteCheckpointType.WAIT_FOR_SECONDS,
+                gs.RouteCheckpointType.WAIT_FOR_PLAY_TIME,
+                gs.RouteCheckpointType.WAIT_CURRENT_FRAGMENT_TIME,
+                gs.RouteCheckpointType.WAIT_CURRENT_WAVE_TIME) else None,
+        }
+
+    def _checkpoint_countdown(self, checkpoint, checkpoint_block, cursor,
+                              play_time, frame_duration):
+        if not checkpoint or checkpoint.get('type') is None:
+            return {
+                'seconds': None, 'frames': None, 'exact': False,
+                'source': 'movement_condition', 'waiting': False,
+            }
+        cp_type = checkpoint['type']
+        seconds = None
+        source = 'event_condition'
+        exact = False
+        if cp_type == gs.RouteCheckpointType.WAIT_FOR_SECONDS and checkpoint_block:
+            seconds = gs.fp_to_float(_u64(
+                checkpoint_block, gs.WaitForSecondsCheckpointFields.M_TIME))
+            source, exact = 'runtime_wait_timer', True
+        elif cp_type == gs.RouteCheckpointType.WAIT_FOR_PLAY_TIME:
+            seconds = checkpoint['time'] - play_time
+            source, exact = 'play_clock', True
+        elif cp_type == gs.RouteCheckpointType.WAIT_CURRENT_WAVE_TIME:
+            wave_start = gs.fp_to_float(_u64(
+                cursor, gs.BasicCursorFields.SNAPSHOT
+                + gs.SchedulerSnapshotFields.WAVE_START_TIME))
+            seconds = checkpoint['time'] - (play_time - wave_start)
+            source, exact = 'wave_clock', True
+        elif cp_type == gs.RouteCheckpointType.WAIT_CURRENT_FRAGMENT_TIME:
+            fragment_start = gs.fp_to_float(_u64(
+                cursor, gs.BasicCursorFields.SNAPSHOT
+                + gs.SchedulerSnapshotFields.FRAGMENT_START_TIME))
+            seconds = checkpoint['time'] - (play_time - fragment_start)
+            source, exact = 'fragment_clock', True
+        elif cp_type in (
+                gs.RouteCheckpointType.MOVE, gs.RouteCheckpointType.PATROL_MOVE,
+                gs.RouteCheckpointType.MAP_OFFSET_MOVE,
+                gs.RouteCheckpointType.APPEAR_AT_POS):
+            source = 'movement_condition'
+        if isinstance(seconds, (int, float)) and math.isfinite(seconds):
+            seconds = max(0.0, float(seconds))
+            if seconds > 864000:
+                seconds, exact = None, False
+        else:
+            seconds, exact = None, False
+        return {
+            'seconds': seconds,
+            'frames': seconds_to_frames(seconds, frame_duration),
+            'exact': exact, 'source': source,
+            'waiting': cp_type in (
+                gs.RouteCheckpointType.WAIT_FOR_SECONDS,
+                gs.RouteCheckpointType.WAIT_FOR_PLAY_TIME,
+                gs.RouteCheckpointType.WAIT_CURRENT_FRAGMENT_TIME,
+                gs.RouteCheckpointType.WAIT_CURRENT_WAVE_TIME,
+                gs.RouteCheckpointType.WAIT_BOSSRUSH_WAVE),
+        }
+
+    def _decode_path_record(self, results, first_layout, second_layout,
+                            sample_frame, play_time, frame_duration):
+        first = self._path_results(results, first_layout)
+        second = self._path_results(results, second_layout)
+        first_identity = self._path_identity(*first)
+        second_identity = self._path_identity(*second)
+        if first_identity is None or second_identity is None:
+            return unavailable_pathing('path_chain_invalid', sample_frame)
+        if first_identity != second_identity:
+            return unavailable_pathing('path_identity_changed', sample_frame)
+        enemy, cursor, route, route_data, cp_array, cp_ptr_data, checkpoint_block, cp_data = first
+        cursor_ptr = _u64(enemy, 0)
+        route_ptr = _u64(cursor, gs.BasicCursorFields.M_ROUTE)
+        route_data_ptr = _u64(route, gs.RouteFields.M_DATA)
+        if not all(self.mc.is_ptr(ptr) for ptr in (
+                cursor_ptr, route_ptr, route_data_ptr,
+                _u64(cursor, gs.BasicCursorFields.M_CHECKPOINTS))):
+            return unavailable_pathing('path_pointer_invalid', sample_frame)
+        index = _i32(cursor, gs.BasicCursorFields.M_CURSOR)
+        count = int(_u32(cp_array, gs.Il2CppArray.MAX_LENGTH))
+        if not (0 <= count <= 4096 and 0 <= index <= count):
+            return unavailable_pathing('checkpoint_index_invalid', sample_frame)
+        if index < count and not all((cp_ptr_data, checkpoint_block, cp_data)):
+            return unavailable_pathing('checkpoint_chain_invalid', sample_frame)
+        start = (_i32(route_data, gs.RouteDataFields.START_POSITION),
+                 _i32(route_data, gs.RouteDataFields.START_POSITION + 4))
+        end = (_i32(route_data, gs.RouteDataFields.END_POSITION),
+               _i32(route_data, gs.RouteDataFields.END_POSITION + 4))
+        if not self._valid_grid(*end):
+            return unavailable_pathing('route_end_invalid', sample_frame)
+        intent_end = self._grid_coord(*end, source='active_route')
+        tile_category = self._grid_tile_category(*end)
+        if tile_category:
+            intent_end['tile_category'] = tile_category
+        if tile_category == 'friendly_goal':
+            intent_end['label'] += '（友方目标）'
+        cached_route = _u64(
+            enemy, gs.EnemyFields.M_CACHED_ROUTE - gs.EnemyFields.M_CURSOR)
+        route_value = self._match_runtime_route(
+            route_ptr, route_data_ptr,
+            _u64(route_data, gs.RouteDataFields.CHECKPOINTS),
+            cached_route, start, end)
+        next_row = _i32(cursor, gs.DirectionCursorFields.M_NEXT_GRID)
+        next_col = _i32(cursor, gs.DirectionCursorFields.M_NEXT_GRID + 4)
+        next_waypoint = (self._grid_coord(next_row, next_col)
+                         if next_row >= 0 and next_col >= 0
+                         and self._valid_grid(next_row, next_col) else None)
+        next_checkpoint = self._format_checkpoint(
+            index, count, cp_data, intent_end)
+        countdown = self._checkpoint_countdown(
+            next_checkpoint, checkpoint_block, cursor, play_time, frame_duration)
+        return {
+            'available': True, 'sample_frame': int(sample_frame),
+            'consistent': True, 'path_identity_stable': True,
+            'cursor_kind': 'primary',
+            # 仅存在 trace cursor 不代表 Enemy.moveCursor 正在选择它；后者还
+            # 受 ability、alwaysUsing、isMarkReached 与派生类虚方法影响。
+            # 无法从当前只读主路线链证明时必须保持 false，不能产生假阳性。
+            'temporarily_diverted': False,
+            'intent_end': intent_end, 'route': route_value,
+            'next_waypoint': next_waypoint,
+            'next_checkpoint': next_checkpoint,
+            'checkpoint_countdown': countdown,
+            'reason': '', 'historical': False,
+        }
+
+    def _refresh_pathing_chan(self, ptrs, infos):
+        """Read all active path graphs in one guarded memsrv-v5 transaction."""
+        sample_frame = self._fixed_frame_snap
+        for enemy_addr in ptrs:
+            if enemy_addr in infos:
+                infos[enemy_addr].pathing = unavailable_pathing(
+                    'path_guard_unavailable', sample_frame)
+        guarded = getattr(self._chan, 'guarded_transaction_read', None)
+        if (not ptrs or not callable(guarded)
+                or not self.mc.is_ptr(self._bc_static_fields)
+                or sample_frame is None):
+            return
+        operations, clock_index, layouts = self._build_path_transaction(ptrs)
+        guard_addr = (self._bc_static_fields
+                      + gs.BattleControllerStaticFields.FIXED_FRAME_COUNT)
+        try:
+            results, guard = guarded(
+                operations, guard_addr, guard_size=4, max_attempts=8)
+        except (OSError, IOError, RuntimeError, ValueError, struct.error):
+            return
+        guard_start = guard.get('start') if isinstance(guard, dict) else None
+        guard_end = guard.get('end') if isinstance(guard, dict) else None
+        if (not isinstance(guard, dict) or not guard.get('complete')
+                or guard_start != sample_frame or guard_end != sample_frame
+                or len(results) != len(operations)):
+            reason = ('path_frame_mismatch' if guard_start is not None
+                      else 'path_guard_failed')
+            for enemy_addr in ptrs:
+                if enemy_addr in infos:
+                    infos[enemy_addr].pathing = unavailable_pathing(
+                        reason, sample_frame)
+            return
+        clock = results[clock_index]
+        frame, play_time, frame_duration = self._decode_battle_clock_snapshot(clock)
+        if frame != sample_frame or play_time is None or frame_duration is None:
+            return
+        for enemy_addr, (first, second) in layouts.items():
+            info = infos.get(enemy_addr)
+            if info is None:
+                continue
+            try:
+                info.pathing = self._decode_path_record(
+                    results, first, second, sample_frame,
+                    play_time, frame_duration)
+            except (IndexError, TypeError, ValueError, struct.error):
+                info.pathing = unavailable_pathing(
+                    'path_decode_failed', sample_frame)
+
     # 完整实时模式：所有敌方运行时数据每个采样帧都读取。常量保留给诊断
     # 输出和测试识别，但不再以取模方式跳帧。
     LIST_EVERY = 1
@@ -4425,7 +4950,7 @@ class EnemyReader:
                 ap = self._attr_ptrs.get(aep, 0)
                 if ap:
                     slot['attr_heads'].append((len(reqs), aep, ap))
-                    reqs.append((ap, 0x60))
+                    reqs.append((ap, gs.AttributesFields.READ_SIZE))
         if self.bc_addr:
             slot['bc'] = len(reqs)
             reqs.append((self.bc_addr + 0x200, 0xC0))
@@ -4548,6 +5073,13 @@ class EnemyReader:
                 if self.mc.is_ptr(all_skl):
                     self._skill_ap[ep] = all_skl
 
+        # 路径必须紧跟本帧 Enemy 块，以单次设备侧事务重新解析全部动态指针。
+        # guarded_transaction_read 会在设备内验证逻辑帧与首尾身份；失败时
+        # EnemyInfo 保持 unavailable，绝不复制上一帧路径。
+        readable_ptrs = [ep for ep in ptrs if ep in infos]
+        if readable_ptrs:
+            self._refresh_pathing_chan(readable_ptrs, infos)
+
         # ---- 新敌人: 通道内解析名称+属性 (仅列表变化帧触发) ----
         new_eps = [ep for ep in ptrs if ep not in self._names or ep not in self._attr_snapshot]
         if new_eps:
@@ -4569,7 +5101,6 @@ class EnemyReader:
             self._discover_custom_shields(custom_probe_eps, infos)
 
         # ---- 状态机 / 异常状态 / 免疫 / 五种损伤条 ----
-        readable_ptrs = [ep for ep in ptrs if ep in infos]
         if readable_ptrs:
             self._refresh_runtime_chan(readable_ptrs, infos)
             self._refresh_precise_positions(readable_ptrs, infos)
@@ -5029,7 +5560,7 @@ class EnemyReader:
                 reqs.append((info.id_ptr, 0x80))
                 keys.append(('id', ep))
             if info.attr_ptr and self.mc.is_ptr(info.attr_ptr):
-                reqs.append((info.attr_ptr, 0x60))
+                reqs.append((info.attr_ptr, gs.AttributesFields.READ_SIZE))
                 keys.append(('attr', ep))
             if info.data_ptr and self.mc.is_ptr(info.data_ptr):
                 reqs.append((info.data_ptr, gs.LevelEnemyDataFields.ATTRIBUTES))
@@ -5159,7 +5690,7 @@ class EnemyReader:
             return self._detail_chan.batch_read(reqs)
         if self._chan is not None:
             return self._chan.batch_read(reqs)
-        raise RuntimeError('memsrv v4 主通道尚未建立')
+        raise RuntimeError('memsrv v5 主通道尚未建立')
 
     def _read_strings(self, ptrs, max_chars=256):
         unique = [p for p in dict.fromkeys(ptrs) if self.mc.is_ptr(p)]
@@ -5683,7 +6214,8 @@ class EnemyReader:
             self._fill_name(addr, blk, info)
 
         # 同时读取原始和最终属性，详情页可直接比较 Buff 前后变化。
-        (attr_head,) = self._detail_batch_read([(info.attr_ptr, 0x60)]) \
+        (attr_head,) = self._detail_batch_read(
+            [(info.attr_ptr, gs.AttributesFields.READ_SIZE)]) \
             if self.mc.is_ptr(info.attr_ptr) else (None,)
         if attr_head:
             raw_ptr = _u64(attr_head, gs.AttributesFields.M_RAW_DATA)
@@ -5708,7 +6240,7 @@ class EnemyReader:
 
         if not heavy_only:
             if self._chan is None:
-                raise RuntimeError('memsrv v4 主通道尚未建立')
+                raise RuntimeError('memsrv v5 主通道尚未建立')
             self._refresh_runtime_chan([addr], {addr: info})
             info.skills = list(self._skill_cd.get(addr, []))
             info.skills_detail = list(self._skill_enriched.get(addr, ()))

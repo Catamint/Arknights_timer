@@ -52,6 +52,11 @@ ENEMY_COLUMN_DEFS = [
     _col('hp', '血量', 185, True, True),
     _col('pos', '坐标', 110, True, True),
     _col('precise_pos', '精确坐标', 125, True, True),
+    _col('intent_end', '意图终点', 120, True),
+    _col('current_route', '当前路线', 175, True),
+    _col('next_waypoint', '下一路点', 105, True),
+    _col('next_checkpoint', '下一检查点', 190, True),
+    _col('checkpoint_countdown', '检查点倒计时', 145, True, True),
     _col('action_state', '行为状态', 72, True),
     _col('action_phase', '动作阶段', 180, True),
     _col('remaining_time', '剩余帧/时间', 170, True),
@@ -91,6 +96,10 @@ SPAWN_KIND_NAMES = {
     'dynamic': '运行时生成',
 }
 DEFAULT_VISIBLE_COLUMNS = {col['key'] for col in ENEMY_COLUMN_DEFS if col['default']}
+PATHING_COLUMN_KEYS = (
+    'intent_end', 'current_route', 'next_waypoint', 'next_checkpoint',
+    'checkpoint_countdown',
+)
 
 
 def precision_column_defs(visible=None):
@@ -166,6 +175,14 @@ def load_visible_columns(settings, key):
     if not migrated:
         chosen.add('precise_pos')
         settings.setValue(migration_key, True)
+    migration_key = key + '/runtime_pathing_v1'
+    marker = settings.value(migration_key, False)
+    migrated = marker is True or str(marker).lower() in ('1', 'true', 'yes')
+    # 新的运行时路径列对已有用户只强制开启一次。此后用户手动隐藏列时，
+    # 迁移标记会保留其选择，不会在下次启动时再次打开。
+    if not migrated:
+        chosen.update(PATHING_COLUMN_KEYS)
+        settings.setValue(migration_key, True)
     return chosen
 
 
@@ -187,6 +204,18 @@ def load_column_order(settings, key, all_keys):
     valid = set(all_keys)
     order = [k for k in saved if k in valid]
     order.extend(k for k in all_keys if k not in order)
+    migration_key = key + '/runtime_pathing_v1'
+    marker = settings.value(migration_key, False)
+    migrated = marker is True or str(marker).lower() in ('1', 'true', 'yes')
+    if not migrated and 'precise_pos' in order:
+        # 旧存档不知道新增列，通用补全会把它们附到表尾。首次升级时将五列
+        # 原子地插回“精确坐标”之后，并立即保存；后续完全尊重用户拖动顺序。
+        pathing_keys = [item for item in PATHING_COLUMN_KEYS if item in valid]
+        order = [item for item in order if item not in pathing_keys]
+        insert_at = order.index('precise_pos') + 1
+        order[insert_at:insert_at] = pathing_keys
+        settings.setValue(key, ','.join(order))
+        settings.setValue(migration_key, True)
     return order
 
 
@@ -413,6 +442,88 @@ class EnemyPrecisionDialog(QDialog):
         return {key: control.value() for key, control in self.controls.items()}
 
 
+def _mapping_value(mapping, snake_key, camel_key=None, default=None):
+    """Read a pathing field without making the UI depend on one producer build."""
+    if not isinstance(mapping, dict):
+        return default
+    if snake_key in mapping:
+        return mapping[snake_key]
+    if camel_key and camel_key in mapping:
+        return mapping[camel_key]
+    return default
+
+
+def _pathing_label(value):
+    if not isinstance(value, dict):
+        return ''
+    label = value.get('label')
+    if label not in (None, ''):
+        return str(label)
+    row, col = value.get('row'), value.get('col')
+    if row is not None and col is not None:
+        return f'({row}, {col})'
+    return ''
+
+
+def format_pathing_column(key, enemy, decimals=None):
+    """Format one of the five same-frame runtime path columns.
+
+    A failed/inconsistent current sample deliberately returns ``同步重试`` instead
+    of consulting any previous value. This keeps the table's path data fail-closed:
+    an unavailable frame can never look like a valid but one-frame-late route.
+    """
+    pathing = getattr(enemy, 'pathing', None)
+    if not isinstance(pathing, dict):
+        return '—'
+    available = bool(pathing.get('available', False))
+    consistent = bool(pathing.get('consistent', available))
+    identity_stable = bool(_mapping_value(
+        pathing, 'path_identity_stable', 'pathIdentityStable', available))
+    if not available or not consistent or not identity_stable:
+        reason = str(pathing.get('reason') or '')
+        if (getattr(enemy, 'lifecycle', 'active') == 'active'
+                and reason not in ('pending', 'departed', 'not_started')):
+            return '同步重试'
+        return '—'
+
+    field_names = {
+        'intent_end': ('intent_end', 'intentEnd'),
+        'current_route': ('route', 'route'),
+        'next_waypoint': ('next_waypoint', 'nextWaypoint'),
+        'next_checkpoint': ('next_checkpoint', 'nextCheckpoint'),
+    }
+    if key in field_names:
+        snake_key, camel_key = field_names[key]
+        return _pathing_label(_mapping_value(pathing, snake_key, camel_key)) or '—'
+
+    if key == 'checkpoint_countdown':
+        countdown = _mapping_value(
+            pathing, 'checkpoint_countdown', 'checkpointCountdown')
+        if not isinstance(countdown, dict):
+            return '—'
+        seconds = countdown.get('seconds')
+        frames = countdown.get('frames')
+        if seconds is not None and frames is not None:
+            try:
+                precision = (decimals or {}).get(
+                    key, (decimals or {}).get('default', 2))
+                seconds_text = f'{max(0.0, float(seconds)):.{precision}f}秒'
+                frames_text = f'{max(0, int(frames))}帧'
+            except (TypeError, ValueError, OverflowError):
+                return '同步重试'
+            prefix = '' if bool(countdown.get('exact', False)) else '约'
+            return f'{prefix}{seconds_text} / {frames_text}'
+        source = str(countdown.get('source') or '')
+        if source in ('event_condition', 'condition', 'event'):
+            return '条件驱动'
+        if source in (
+                'moving', 'movement', 'movement_condition',
+                'route_distance_estimate'):
+            return '移动中'
+        return '—'
+    return '—'
+
+
 def format_column_value(key, enemy, decimals, row=0):
     precision = decimals.get(key, decimals.get('default', 2))
     lifecycle = getattr(enemy, 'lifecycle', 'active')
@@ -435,6 +546,8 @@ def format_column_value(key, enemy, decimals, row=0):
         p = decimals.get('precise_pos', precision)
         return (f'({enemy.precise_pos_x:.{p}f}, '
                 f'{enemy.precise_pos_y:.{p}f})')
+    if key in PATHING_COLUMN_KEYS:
+        return format_pathing_column(key, enemy, decimals)
     if key == 'action_state':
         return gs.ENEMY_STATE_NAMES.get(enemy.state_id, f'未知({enemy.state_id})')
     if key == 'action_phase':

@@ -63,10 +63,10 @@ MuMu 模拟器 (Android arm64)
   `BattleController → LevelData.waves` 解析开局即存在的固定 SPAWN 顺序，因此不再
   依赖场上已有敌人。旧的 `enemy_` 字符串 + HP 特征全堆扫描保留为版本漂移兜底；
   地址链缓存到 `enemy_cache.pkl`，有效时可直接复用
-- **轮询**：设备侧常驻内存服务 `memsrv v4`（aarch64 静态二进制，`nc -L` +
+- **轮询**：设备侧常驻内存服务 `memsrv v5`（aarch64 静态二进制，`nc -L` +
   `adb forward` TCP 长连接），打开 `/proc/<pid>/mem` 一次后按 batch 批量 pread。
   敌我容器、实体、属性、状态、技能、Buff、伤害统计和战斗时钟全部逐采样帧读取；
-  稳定指针链会合并为同一批，指针改变则当帧补读。v4 是唯一内存读取协议；
+  稳定指针链会合并为同一批，指针改变则当帧补读。v5 是唯一内存读取协议；
   二进制缺失、握手不符或通道异常会直接报错，不再切换到旧协议或慢速 ADB
 - **单一展示层**：`tools/enemy_health` 只负责定位、读取与数据模型；敌人表格、
   列设置和详情窗口统一由 `backend` 主程序维护

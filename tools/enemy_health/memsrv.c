@@ -4,14 +4,23 @@
 // 打开 /proc/<pid>/mem 一次, 之后每次读取仅一个 pread 系统调用。
 //
 // 协议 (全部小端):
-//   启动: 写出 8 字节横幅 "AKMSRV4\n"
+//   启动: 写出 8 字节横幅 "AKMSRV5\n"
 //   合并读取: u64 == PACKED_READ_MAGIC, u64 N, 随后 N 组 { u64 addr, u64 size }
 //         响应: { u64 N, i64 lengths[N], u8 data[sum(max(length, 0))] }
 //         整批响应只做一次 write，避免每个小读取分别写长度和数据。
 //   读取事务: u64 == TXN_READ_MAGIC, u64 N, 随后 N 组 TxnReq
 //         TxnReq = { u32 kind, u32 ref, i64 value, i64 offset, u64 size }
-//         kind=0: addr=(u64)value；kind=1: addr=u64(result[ref]+offset)+value。
+//         kind=0: addr=(u64)value；kind=1: addr=u64(result[ref]+offset)+value；
+//         kind=2: offset 的低/高 32 位分别是前序结果内的数组指针/
+//         int32 索引偏移，设 array=ptr(result[ref]+array_off)，读取
+//         ptr(array.items[index])+value。设备侧校验 max_length 和下标边界。
+//         kind=3: 同样动态定位 array.items[index]，但返回其 u64 指针，
+//         便于事务末尾再读一次并校验路径对象身份。
 //         各操作在设备侧按顺序执行，响应格式同合并读取。
+//   一次性守卫事务: u64 == GUARDED_TXN_MAGIC, { u64 N,
+//         u64 guard_addr, u32 guard_size, u32 max_attempts }, 随后 N 组 TxnReq。
+//         设备内以 guard 起止值相等为条件重试，响应为
+//         { u64 attempts, u64 guard_start, u64 guard_end } + 合并读取响应。
 //   上传常驻计划: u64 == PLAN_UPLOAD_MAGIC, { u64 N, u64 guard_addr,
 //         u32 guard_size, u32 max_attempts }, 随后 N 组 TxnReq；响应 u64 N。
 //   执行常驻计划: u64 == PLAN_EXEC_MAGIC；设备内部以 guard 起止值检查完整帧，
@@ -34,18 +43,28 @@
 #include <string.h>
 #include <unistd.h>
 
-#define MAX_REQ 4096                // 单批最多读取请求数
+#define MAX_REQ 8192                // 单批最多读取请求数（覆盖 300 敌人双链快照）
 #define MAX_SIZE (4 * 1024 * 1024)  // 单请求最大字节 (也是扫描分块)
 #define MAX_NEEDLES 256             // 单次扫描最多模式串
 #define MAX_NEEDLE_LEN 64           // 单个模式串最大字节
 #define MAX_HITS 65536              // 单针最多命中数
+#define MAX_GUARD_ATTEMPTS 8
 #define OVERLAP (MAX_NEEDLE_LEN)    // 扫描分块重叠, 覆盖跨界命中
 #define SCAN_MAGIC 0xFFFFFFFFFFFFFFFFULL
 #define PACKED_READ_MAGIC 0xFFFFFFFFFFFFFFFEULL
 #define TXN_READ_MAGIC 0xFFFFFFFFFFFFFFFDULL
 #define PLAN_UPLOAD_MAGIC 0xFFFFFFFFFFFFFFFCULL
 #define PLAN_EXEC_MAGIC 0xFFFFFFFFFFFFFFFBULL
+#define GUARDED_TXN_MAGIC 0xFFFFFFFFFFFFFFFAULL
 #define MAX_BATCH_BYTES (64 * 1024 * 1024)
+#define MAX_ARRAY_LENGTH (16 * 1024 * 1024ULL)
+
+#define TXN_DIRECT 0U
+#define TXN_DEREF 1U
+#define TXN_ARRAY_DEREF 2U
+#define TXN_ARRAY_PTR 3U
+#define IL2CPP_ARRAY_MAX_LENGTH 0x18ULL
+#define IL2CPP_ARRAY_ITEMS 0x20ULL
 
 typedef struct {
     uint64_t addr;
@@ -93,6 +112,36 @@ static int write_exact(int fd, const void *buf, size_t n) {
     return 0;
 }
 
+static int checked_add_signed(uint64_t base, int64_t delta, uint64_t *out) {
+    if (delta >= 0) {
+        uint64_t amount = (uint64_t)delta;
+        if (base > UINT64_MAX - amount) return -1;
+        *out = base + amount;
+        return 0;
+    }
+    /* -(INT64_MIN) 在 int64_t 中溢出，用 -(x+1)+1 计算绝对值。 */
+    uint64_t amount = (uint64_t)(-(delta + 1)) + 1ULL;
+    if (base < amount) return -1;
+    *out = base - amount;
+    return 0;
+}
+
+static int read_u64_at(int fd, uint64_t addr, uint64_t *out) {
+    ssize_t r;
+    do {
+        r = pread(fd, out, sizeof(*out), (off_t)addr);
+    } while (r < 0 && errno == EINTR);
+    return r == (ssize_t)sizeof(*out) ? 0 : -1;
+}
+
+static int read_u32_at(int fd, uint64_t addr, uint32_t *out) {
+    ssize_t r;
+    do {
+        r = pread(fd, out, sizeof(*out), (off_t)addr);
+    } while (r < 0 && errno == EINTR);
+    return r == (ssize_t)sizeof(*out) ? 0 : -1;
+}
+
 /*
  * 执行合并读取并一次写出完整响应。result_offsets/result_lengths 同时保留
  * 每个结果在响应缓冲区中的位置，供后续事务操作引用前序读取出的指针。
@@ -128,9 +177,10 @@ static int build_packed_response(int fd, const ReadReq *reqs, uint64_t n,
         int invalid = (size == 0 || size > MAX_SIZE);
         if (!invalid && !allow_refs) {
             addr = reqs[i].addr;
-        } else if (!invalid && txn[i].kind == 0) {
+        } else if (!invalid && txn[i].kind == TXN_DIRECT) {
+            if (txn[i].value <= 0) invalid = 1;
             addr = (uint64_t)txn[i].value;
-        } else if (!invalid && txn[i].kind == 1) {
+        } else if (!invalid && txn[i].kind == TXN_DEREF) {
             uint32_t ref = txn[i].ref;
             int64_t off = txn[i].offset;
             if (ref >= i || lengths[ref] <= 0 || off < 0
@@ -140,7 +190,62 @@ static int build_packed_response(int fd, const ReadReq *reqs, uint64_t n,
                 uint64_t base = 0;
                 memcpy(&base, response + result_offsets[ref] + (size_t)off,
                        sizeof(base));
-                addr = base + (uint64_t)txn[i].value;
+                if (!base || checked_add_signed(base, txn[i].value, &addr) < 0)
+                    invalid = 1;
+            }
+        } else if (!invalid && (txn[i].kind == TXN_ARRAY_DEREF
+                                || txn[i].kind == TXN_ARRAY_PTR)) {
+            uint32_t ref = txn[i].ref;
+            uint64_t packed_offsets = (uint64_t)txn[i].offset;
+            uint32_t array_off = (uint32_t)(packed_offsets & 0xFFFFFFFFULL);
+            uint32_t index_off = (uint32_t)(packed_offsets >> 32);
+            if ((txn[i].kind == TXN_ARRAY_PTR && size != sizeof(uint64_t))
+                    || ref >= i || lengths[ref] <= 0
+                    || (uint64_t)array_off + sizeof(uint64_t)
+                        > (uint64_t)lengths[ref]
+                    || (uint64_t)index_off + sizeof(int32_t)
+                        > (uint64_t)lengths[ref]) {
+                invalid = 1;
+            } else {
+                uint64_t array_ptr = 0;
+                uint32_t max_length = 0;
+                int32_t index = -1;
+                const uint8_t *source = response + result_offsets[ref];
+                memcpy(&array_ptr, source + array_off, sizeof(array_ptr));
+                memcpy(&index, source + index_off, sizeof(index));
+                uint64_t length_addr = 0;
+                if (!array_ptr || index < 0
+                        || checked_add_signed(array_ptr,
+                                              (int64_t)IL2CPP_ARRAY_MAX_LENGTH,
+                                              &length_addr) < 0
+                        /* IL2CPP max_length 是 int32/u32；+0x1C 是填充，
+                         * 不能按 u64 读取并把填充垃圾并入数组长度。 */
+                        || read_u32_at(fd, length_addr, &max_length) < 0
+                        || max_length > MAX_ARRAY_LENGTH
+                        || (uint64_t)index >= max_length) {
+                    invalid = 1;
+                } else {
+                    uint64_t item_offset = (uint64_t)index * sizeof(uint64_t);
+                    uint64_t item_addr = 0;
+                    if (array_ptr > UINT64_MAX - IL2CPP_ARRAY_ITEMS
+                            || array_ptr + IL2CPP_ARRAY_ITEMS
+                                > UINT64_MAX - item_offset) {
+                        invalid = 1;
+                    } else {
+                        item_addr = array_ptr + IL2CPP_ARRAY_ITEMS + item_offset;
+                        if (txn[i].kind == TXN_ARRAY_PTR) {
+                            addr = item_addr;
+                        } else {
+                            uint64_t object_ptr = 0;
+                            if (read_u64_at(fd, item_addr, &object_ptr) < 0
+                                    || !object_ptr
+                                    || checked_add_signed(object_ptr,
+                                                          txn[i].value,
+                                                          &addr) < 0)
+                                invalid = 1;
+                        }
+                    }
+                }
             }
         } else if (!invalid) {
             invalid = 1;
@@ -301,7 +406,7 @@ int main(int argc, char **argv) {
     int fd = open(path, O_RDONLY);
     if (fd < 0) return 3;
 
-    if (write_exact(1, "AKMSRV4\n", 8) < 0) return 4;
+    if (write_exact(1, "AKMSRV5\n", 8) < 0) return 4;
 
     for (;;) {
         uint64_t n = 0;
@@ -368,6 +473,58 @@ int main(int argc, char **argv) {
             continue;
         }
 
+        if (n == GUARDED_TXN_MAGIC) {
+            uint64_t header[2];
+            uint32_t options[2];
+            if (read_exact(0, header, sizeof(header)) < 0) return 0;
+            if (read_exact(0, options, sizeof(options)) < 0) return 0;
+            uint64_t count = header[0];
+            uint64_t guard_addr = header[1];
+            uint32_t guard_size = options[0];
+            uint32_t max_attempts = options[1];
+            if (count == 0 || count > MAX_REQ) return 26;
+            if ((guard_addr && guard_size != 4 && guard_size != 8)
+                    || (!guard_addr && guard_size != 0)) return 27;
+            if (max_attempts < 1) max_attempts = 1;
+            if (max_attempts > MAX_GUARD_ATTEMPTS)
+                max_attempts = MAX_GUARD_ATTEMPTS;
+            TxnReq *txn = (TxnReq *)malloc((size_t)count * sizeof(TxnReq));
+            if (!txn) return 28;
+            if (read_exact(0, txn, (size_t)count * sizeof(TxnReq)) < 0) {
+                free(txn);
+                return 0;
+            }
+            uint8_t *response = NULL;
+            size_t response_size = 0;
+            uint64_t attempts = 0;
+            uint64_t guard_start = UINT64_MAX, guard_end = UINT64_MAX;
+            for (uint32_t attempt = 0; attempt < max_attempts; attempt++) {
+                free(response);
+                response = NULL;
+                response_size = 0;
+                guard_start = read_guard_value(fd, guard_addr, guard_size);
+                if (build_packed_response(fd, NULL, count, 1, txn,
+                                          &response, &response_size) < 0) {
+                    free(txn);
+                    free(response);
+                    return 29;
+                }
+                guard_end = read_guard_value(fd, guard_addr, guard_size);
+                attempts = (uint64_t)attempt + 1;
+                if (!guard_addr || (guard_start != UINT64_MAX
+                        && guard_start == guard_end)) break;
+            }
+            free(txn);
+            uint64_t meta[3] = { attempts, guard_start, guard_end };
+            if (write_exact(1, meta, sizeof(meta)) < 0
+                    || write_exact(1, response, response_size) < 0) {
+                free(response);
+                return 30;
+            }
+            free(response);
+            continue;
+        }
+
         if (n == PLAN_UPLOAD_MAGIC) {
             uint64_t header[2];
             uint32_t options[2];
@@ -375,7 +532,8 @@ int main(int argc, char **argv) {
             if (read_exact(0, options, sizeof(options)) < 0) return 0;
             uint64_t count = header[0];
             if (count == 0 || count > MAX_REQ) return 18;
-            if (options[0] != 0 && options[0] != 4 && options[0] != 8) return 19;
+            if ((header[1] && options[0] != 4 && options[0] != 8)
+                    || (!header[1] && options[0] != 0)) return 19;
             TxnReq *plan = malloc((size_t)count * sizeof(TxnReq));
             if (!plan) return 20;
             if (read_exact(0, plan, (size_t)count * sizeof(TxnReq)) < 0) {
@@ -389,7 +547,8 @@ int main(int argc, char **argv) {
             saved_guard_size = options[0];
             saved_max_attempts = options[1];
             if (saved_max_attempts < 1) saved_max_attempts = 1;
-            if (saved_max_attempts > 8) saved_max_attempts = 8;
+            if (saved_max_attempts > MAX_GUARD_ATTEMPTS)
+                saved_max_attempts = MAX_GUARD_ATTEMPTS;
             if (write_exact(1, &saved_plan_count, sizeof(saved_plan_count)) < 0)
                 return 21;
             continue;

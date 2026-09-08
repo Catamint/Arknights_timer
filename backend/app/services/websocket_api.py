@@ -31,6 +31,7 @@ _INTERNAL_FIELD_SUFFIXES = ("addr", "address", "ptr", "pointer")
 
 TOPIC_DEFAULTS: dict[str, float] = {
     "battle": 20.0, "stage": 2.0, "enemies": 10.0,
+    "enemy_pathing": 30.0,
     "characters": 10.0, "enemy_detail": 2.0,
     "character_detail": 2.0, "deploy": 4.0, "rng": 2.0,
     "quality": 2.0, "ops.heartbeat": 0.5,
@@ -38,6 +39,7 @@ TOPIC_DEFAULTS: dict[str, float] = {
 TOPIC_LIMITS: dict[str, tuple[float, float]] = {
     "battle": (1.0, 60.0), "stage": (0.2, 20.0),
     "enemies": (1.0, 20.0), "characters": (1.0, 20.0),
+    "enemy_pathing": (1.0, 60.0),
     "enemy_detail": (0.2, 60.0), "character_detail": (0.2, 60.0),
     "deploy": (1.0, 20.0), "rng": (1.0, 10.0),
     "quality": (0.5, 5.0), "ops.heartbeat": (0.2, 2.0),
@@ -81,6 +83,125 @@ def entity_public_id(prefix: str, entity: Any, fallback: int) -> str:
     return f"{prefix}-{fallback}"
 
 
+def _field(mapping: Any, snake_key: str, camel_key: str | None = None) -> Any:
+    if not isinstance(mapping, dict):
+        return None
+    if snake_key in mapping:
+        return mapping[snake_key]
+    return mapping.get(camel_key) if camel_key else None
+
+
+def _public_point(value: Any) -> dict[str, Any] | None:
+    """Whitelist a public grid point; never copy a runtime dictionary whole."""
+    if not isinstance(value, dict):
+        return None
+    result = {
+        "row": _safe(value.get("row")),
+        "col": _safe(value.get("col")),
+        "label": _safe(value.get("label")),
+    }
+    for public, snake, camel in (
+            ("tileCategory", "tile_category", "tileCategory"),
+            ("source", "source", "source")):
+        selected = _field(value, snake, camel)
+        if selected is not None:
+            result[public] = _safe(selected)
+    return result
+
+
+def _public_pathing(value: Any) -> dict[str, Any]:
+    """Build the stable pathing schema using an explicit nested whitelist."""
+    pathing = value if isinstance(value, dict) else {}
+    route = _field(pathing, "route", "route")
+    checkpoint = _field(pathing, "next_checkpoint", "nextCheckpoint")
+    countdown = _field(pathing, "checkpoint_countdown", "checkpointCountdown")
+
+    public_route = None
+    if isinstance(route, dict):
+        public_route = {
+            "kind": _safe(route.get("kind")),
+            "index": _safe(route.get("index")),
+            "ordinal": _safe(route.get("ordinal")),
+            "globalIndex": _safe(_field(route, "global_index", "globalIndex")),
+            "label": _safe(route.get("label")),
+            "matchedBy": _safe(_field(route, "matched_by", "matchedBy")),
+            "runtimeModified": bool(_field(
+                route, "runtime_modified", "runtimeModified")),
+        }
+
+    public_checkpoint = None
+    if isinstance(checkpoint, dict):
+        public_checkpoint = {
+            "index": _safe(checkpoint.get("index")),
+            "ordinal": _safe(checkpoint.get("ordinal")),
+            "type": _safe(checkpoint.get("type")),
+            "typeName": _safe(_field(checkpoint, "type_name", "typeName")),
+            "label": _safe(checkpoint.get("label")),
+            "target": _public_point(checkpoint.get("target")),
+            "time": _safe(checkpoint.get("time")),
+        }
+
+    public_countdown = None
+    if isinstance(countdown, dict):
+        public_countdown = {
+            "seconds": _safe(countdown.get("seconds")),
+            "frames": _safe(countdown.get("frames")),
+            "exact": bool(countdown.get("exact", False)),
+            "source": _safe(countdown.get("source")),
+            "waiting": bool(countdown.get("waiting", False)),
+        }
+
+    return {
+        "available": bool(pathing.get("available", False)),
+        "sampleFrame": _safe(_field(pathing, "sample_frame", "sampleFrame")),
+        "consistent": bool(pathing.get("consistent", False)),
+        "pathIdentityStable": bool(_field(
+            pathing, "path_identity_stable", "pathIdentityStable")),
+        "cursorKind": _safe(_field(pathing, "cursor_kind", "cursorKind")),
+        "temporarilyDiverted": bool(_field(
+            pathing, "temporarily_diverted", "temporarilyDiverted")),
+        "historical": bool(pathing.get("historical", False)),
+        "reason": _safe(pathing.get("reason")),
+        "intentEnd": _public_point(_field(pathing, "intent_end", "intentEnd")),
+        "route": public_route,
+        "nextWaypoint": _public_point(_field(
+            pathing, "next_waypoint", "nextWaypoint")),
+        "nextCheckpoint": public_checkpoint,
+        "checkpointCountdown": public_countdown,
+    }
+
+
+def _validate_pathing_frame(
+    pathing: dict[str, Any], sample_frame: Any,
+) -> dict[str, Any]:
+    """Fail closed when an entity path does not belong to the enclosing frame."""
+    if not pathing.get("available"):
+        return pathing
+    if sample_frame is not None and pathing.get("sampleFrame") == sample_frame:
+        return pathing
+    reason = ("sample_frame_missing" if sample_frame is None
+              else "sample_frame_mismatch")
+    return _invalidate_public_pathing(pathing, reason)
+
+
+def _invalidate_public_pathing(
+    pathing: dict[str, Any], reason: str,
+) -> dict[str, Any]:
+    """Remove every path value when its frame/identity cannot be trusted."""
+    return {
+        **pathing,
+        "available": False,
+        "consistent": False,
+        "pathIdentityStable": False,
+        "reason": reason,
+        "intentEnd": None,
+        "route": None,
+        "nextWaypoint": None,
+        "nextCheckpoint": None,
+        "checkpointCountdown": None,
+    }
+
+
 def _enemy_basic(entity: Any, index: int) -> dict[str, Any]:
     position = getattr(entity, "position", None)
     if not isinstance(position, dict):
@@ -100,6 +221,7 @@ def _enemy_basic(entity: Any, index: int) -> dict[str, Any]:
         "action": _safe(getattr(entity, "action", {})),
         "shield": getattr(entity, "shield", None),
         "abnormalStatus": _safe(getattr(entity, "abnormal_status", [])),
+        "pathing": _public_pathing(getattr(entity, "pathing", None)),
     }
 
 
@@ -263,7 +385,7 @@ class WebSocketApi:
             for client in self._clients:
                 client.last_sent.clear()
             for topic in (
-                    "stage", "enemies", "characters", "enemy_detail",
+                    "stage", "enemies", "enemy_pathing", "characters", "enemy_detail",
                     "character_detail", "deploy", "rng", "quality"):
                 self._snapshots.pop(topic, None)
             return self._session_id
@@ -298,6 +420,7 @@ class WebSocketApi:
             },
             "capabilities": {
                 "battle": "battle" in available, "enemies": "enemies" in available,
+                "enemyPathing": "enemy_pathing" in available,
                 "characters": "characters" in available, "deploy": "deploy" in available,
                 "rng": "rng" in available,
             },
@@ -369,12 +492,42 @@ class WebSocketApi:
 
     def publish_runtime(self, snapshot: dict[str, Any]) -> None:
         if not snapshot.get("frame_consistent", True):
+            self.publish_enemy_pathing(snapshot, force_unavailable=True)
+            # The normal enemies topic also contains pathing. Invalidate the
+            # cached/public copy immediately so new or slow clients cannot keep
+            # consuming an apparently current route from the previous frame.
+            with self._lock:
+                previous = copy.deepcopy(self._snapshots.get("enemies", {}))
+            if isinstance(previous.get("items"), list):
+                for item in previous["items"]:
+                    if isinstance(item, dict):
+                        item["pathing"] = _invalidate_public_pathing(
+                            _public_pathing(item.get("pathing")),
+                            "frame_inconsistent")
+                self._publish("enemies", previous, force=True)
             self._publish("quality", self._quality(snapshot))
             return
+        sample_frame = snapshot.get("fixed_frame", snapshot.get("sample_frame"))
         enemies = [_enemy_basic(entity, index) for index, entity in enumerate(snapshot.get("enemies", ()), 1)]
+        for basic in enemies:
+            basic["pathing"] = _validate_pathing_frame(
+                basic["pathing"], sample_frame)
         characters = [_character_basic(entity, index) for index, entity in enumerate(snapshot.get("characters", ()), 1)]
         self._merge_battle(self._battle(snapshot))
-        self._publish("enemies", {"items": enemies})
+        active_pairs = [
+            (entity, basic) for entity, basic in
+            zip(snapshot.get("enemies", ()), enemies)
+            if getattr(entity, "lifecycle", "active") == "active"
+        ]
+        pathing_invalid = any(
+            not basic["pathing"].get("available")
+            or not basic["pathing"].get("consistent")
+            or not basic["pathing"].get("pathIdentityStable")
+            for _entity, basic in active_pairs
+        )
+        self._publish(
+            "enemies", {"items": enemies}, force=pathing_invalid)
+        self.publish_enemy_pathing(snapshot)
         self._publish("characters", {"items": characters, "globalDamageSummary": _safe(snapshot.get("global_damage_summary", {}))})
         detail_revision = snapshot.get("external_detail_revision")
         if (isinstance(detail_revision, int)
@@ -395,6 +548,42 @@ class WebSocketApi:
                 for index, entity in enumerate(external_characters, 1)
             ], "loading": bool(snapshot.get("external_detail_loading"))})
         self._publish("quality", self._quality(snapshot))
+
+    def publish_enemy_pathing(
+        self, snapshot: dict[str, Any], *, force_unavailable: bool = False,
+    ) -> None:
+        """Publish a narrow, high-rate, same-frame enemy path snapshot.
+
+        The payload is rebuilt from the current runtime entities every time. On a
+        frame guard failure we explicitly publish unavailable records rather than
+        retaining the preceding valid route in the topic cache.
+        """
+        sample_frame = snapshot.get("fixed_frame", snapshot.get("sample_frame"))
+        consistent = bool(snapshot.get("frame_consistent", True))
+        items = []
+        for index, entity in enumerate(snapshot.get("enemies", ()), 1):
+            pathing = _validate_pathing_frame(
+                _public_pathing(getattr(entity, "pathing", None)), sample_frame)
+            if force_unavailable or not consistent:
+                pathing = _invalidate_public_pathing(
+                    pathing, "frame_inconsistent")
+            items.append({
+                "id": entity_public_id("enemy", entity, index),
+                "pathing": pathing,
+            })
+        active_pathing = [
+            item["pathing"] for entity, item in
+            zip(snapshot.get("enemies", ()), items)
+            if getattr(entity, "lifecycle", "active") == "active"
+        ]
+        all_paths_consistent = consistent and not force_unavailable and all(
+            path.get("available") and path.get("consistent")
+            and path.get("pathIdentityStable") for path in active_pathing)
+        self._publish("enemy_pathing", {
+            "sampleFrame": _safe(sample_frame),
+            "consistent": all_paths_consistent,
+            "items": items,
+        }, force=not all_paths_consistent)
 
     def publish_deploy(self, events: list[Any], stage: dict[str, Any], squad: list[Any], journal: list[Any]) -> None:
         self._publish("stage", {"stage": _safe(stage), "squad": _safe(squad)})
@@ -434,10 +623,15 @@ class WebSocketApi:
                 "pausedSnapshot": bool(snap.get("paused_snapshot")),
                 "droppedOutboundFrames": self._dropped, "resyncCount": self._resyncs}
 
-    def _publish(self, topic: str, data: Any) -> None:
+    def _publish(self, topic: str, data: Any, *, force: bool = False) -> None:
         with self._lock:
             self._snapshots[topic] = data
             self._topic_versions[topic] = self._topic_versions.get(topic, 0) + 1
+            if force:
+                # 失效消息不能受正常主题频率限制，否则客户端仍会在限流窗口
+                # 内使用上一帧路径。清除该主题发送时刻，使下一广播立即送达。
+                for client in self._clients:
+                    client.last_sent.pop(topic, None)
             loop = self._loop
             interested = any(topic in client.subscriptions for client in self._clients)
             if (not interested or not loop or not loop.is_running()

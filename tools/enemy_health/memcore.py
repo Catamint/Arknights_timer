@@ -1,8 +1,8 @@
 """
-memsrv v4 内存读取底层 (明日方舟 @ MuMu 模拟器)
+memsrv v5 内存读取底层 (明日方舟 @ MuMu 模拟器)
 
 - ADB 仅用于设备发现/root/PID/maps、端口转发和部署 memsrv
-- 所有游戏内存读取与扫描只允许 memsrv v4，不保留旧协议、shell/dd 或
+- 所有游戏内存读取与扫描只允许 memsrv v5，不保留旧协议、shell/dd 或
   adb exec-out dd 兼容路径
 - /proc/<pid>/maps 解析与指针有效性校验
 - Il2CppString / C 字符串读取
@@ -15,6 +15,7 @@ import subprocess
 import struct
 import re
 import os
+import hashlib
 import time
 import bisect
 import socket
@@ -279,19 +280,30 @@ def find_running_emulator_adbs(processes=None):
 
 
 class TcpChannel:
-    """设备侧 memsrv v4 常驻快照服务（adb forward TCP 长连接）。
+    """设备侧 memsrv v5 常驻快照服务（adb forward TCP 长连接）。
 
-    只接受 ``AKMSRV4`` 握手。二进制缺失、版本不符或读取异常都会关闭
+    只接受 ``AKMSRV5`` 握手。二进制缺失、版本不符或读取异常都会关闭
     socket 并抛错；调用方不得回退到旧协议、shell/dd 或 adb exec-out dd。"""
 
     PORT = 27271   # 默认端口; 多通道共存时 (如敌人监控 27271 + RNG 27272) 用 port 参数隔离
     SRV_DIR = '/data/local/tmp'
-    BANNER_V4 = b"AKMSRV4\n"   # 常驻事务计划 + 设备侧完整帧校验
+    PROTOCOL_VERSION = 5
+    BANNER_V5 = b"AKMSRV5\n"   # 动态事务 + 设备侧完整帧校验
+    BANNER = BANNER_V5
     SCAN_MAGIC = 0xFFFFFFFFFFFFFFFF
     PACKED_READ_MAGIC = 0xFFFFFFFFFFFFFFFE
     TXN_READ_MAGIC = 0xFFFFFFFFFFFFFFFD
     PLAN_UPLOAD_MAGIC = 0xFFFFFFFFFFFFFFFC
     PLAN_EXEC_MAGIC = 0xFFFFFFFFFFFFFFFB
+    GUARDED_TXN_MAGIC = 0xFFFFFFFFFFFFFFFA
+    MAX_REQUESTS = 8192
+    MAX_REQUEST_SIZE = 4 * 1024 * 1024
+    MAX_BATCH_BYTES = 64 * 1024 * 1024
+    MAX_GUARD_ATTEMPTS = 8
+    TXN_KIND_DIRECT = 0
+    TXN_KIND_DEREF = 1
+    TXN_KIND_ARRAY_DEREF = 2
+    TXN_KIND_ARRAY_PTR = 3
 
     def __init__(self, mc: 'MemCore', read_timeout: float = 5.0, port: int = None):
         self.mc = mc
@@ -299,12 +311,12 @@ class TcpChannel:
         self.port = port or self.PORT
         self.sock: Optional[socket.socket] = None
         self.mode: Optional[str] = None   # 仅 'srv'
-        self.srv_version = 0              # 仅 4
+        self.srv_version = 0              # 仅 PROTOCOL_VERSION
         self._memsrv_restarted = False    # 本次 _push_memsrv 是否重推并杀了旧服务
         self._lock = threading.Lock()   # 同一时间只允许一个 batch_read
         self._stats_lock = threading.Lock()
         self._frame_stats = self._new_frame_stats()
-        # v4 把依赖读取计划常驻在设备端。稳定帧只发送 EXEC，不再上传事务描述，
+        # v5 把依赖读取计划常驻在设备端。稳定帧只发送 EXEC，不再上传事务描述，
         # 也不在 Windows 端逐结果重扫指针。链路变化产生的未命中仍在当帧实读，
         # 下一帧进入一次拓扑捕获，随后上传新的计划。
         self._prefetch_plan: List[Tuple[int, int]] = []
@@ -365,18 +377,26 @@ class TcpChannel:
     # ---------- 服务部署 ----------
 
     def _push_memsrv(self) -> bool:
-        """推送 memsrv 二进制 + 包装脚本到设备 (幂等; 大小不同视为版本变更重推)"""
+        """推送 memsrv 二进制 + 包装脚本到设备（SHA-256 幂等）。"""
         self._memsrv_restarted = False
         try:
             local = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  'bin', 'memsrv')
             if not os.path.exists(local):
                 return False
-            local_size = os.path.getsize(local)
-            out = self.mc.shell(f"stat -c %s {self.SRV_DIR}/memsrv 2>/dev/null").strip()
-            if out != str(local_size):
+            with open(local, 'rb') as binary:
+                local_sha256 = hashlib.sha256(binary.read()).hexdigest()
+            remote_sha256 = self.mc.shell(
+                f"(sha256sum {self.SRV_DIR}/memsrv 2>/dev/null || "
+                f"toybox sha256sum {self.SRV_DIR}/memsrv 2>/dev/null || "
+                f"cat {self.SRV_DIR}/memsrv.sha256 2>/dev/null)").strip().split()
+            remote_sha256 = remote_sha256[0].lower() if remote_sha256 else ''
+            if remote_sha256 != local_sha256:
                 self.mc.adb('push', local, f'{self.SRV_DIR}/memsrv')
                 self.mc.shell(f"chmod 755 {self.SRV_DIR}/memsrv")
+                self.mc.shell(
+                    f"printf '%s\\n' '{local_sha256}' > "
+                    f"{self.SRV_DIR}/memsrv.sha256")
                 # 版本变更: 杀掉旧 nc 强制下次连接重建服务
                 self.mc.shell("kill $(pidof nc) 2>/dev/null")
                 self._memsrv_restarted = True
@@ -398,10 +418,10 @@ class TcpChannel:
             return False
 
     def _start_service(self):
-        """启动设备侧 memsrv v4；部署失败即报错，不启动 shell 服务。"""
+        """启动设备侧 memsrv v5；部署失败即报错，不启动 shell 服务。"""
         if not self._push_memsrv():
             raise RuntimeError(
-                'memsrv v4 二进制缺失或部署失败；已禁用所有兼容读取路径')
+                'memsrv v5 二进制缺失或部署失败；已禁用所有兼容读取路径')
         self.mc.shell(f"setsid nc -L -p {self.port} "
                       f"{self.SRV_DIR}/memsrv.sh </dev/null >/dev/null 2>&1 &")
         time.sleep(0.5)
@@ -420,7 +440,7 @@ class TcpChannel:
         self.mc.adb("forward", f"tcp:{self.port}", f"tcp:{self.port}")
         if not self._push_memsrv():
             raise RuntimeError(
-                'memsrv v4 二进制缺失或部署失败；无法读取游戏内存')
+                'memsrv v5 二进制缺失或部署失败；无法读取游戏内存')
         if self._memsrv_restarted:
             time.sleep(0.3)           # 等旧 nc 退出
             self._start_service()
@@ -451,34 +471,34 @@ class TcpChannel:
     def _connect_once(self):
         self.sock = socket.create_connection(("127.0.0.1", self.port), timeout=10)
         self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-        # memsrv v4 主动发送固定 8 字节横幅。
+        # memsrv v5 主动发送固定 8 字节横幅。
         self.sock.settimeout(1.0)
         try:
             b = self._read_exact(8)
         except (socket.timeout, OSError):
             b = b''
         self.sock.settimeout(self.read_timeout)
-        if b == self.BANNER_V4:
+        if b == self.BANNER:
             self.mode = 'srv'
-            self.srv_version = 4
+            self.srv_version = self.PROTOCOL_VERSION
             return
         self.close()
         label = b.decode('ascii', errors='replace').strip() or '无握手'
-        raise IOError(f'仅支持 memsrv v4，设备返回: {label}')
+        raise IOError(f'仅支持 memsrv v5，设备返回: {label}')
 
-    # ---------- 设备侧扫描 (memsrv v4) ----------
+    # ---------- 设备侧扫描 (memsrv v5) ----------
 
     def scan(self, addr: int, size: int, needles: List[bytes]) -> dict:
         """设备侧模式扫描: 在 [addr, addr+size) 内搜索全部 needle,
-        返回 {needle: [命中绝对地址...]}；只允许 memsrv v4。
+        返回 {needle: [命中绝对地址...]}；只允许 memsrv v5。
         命中地址数单针上限 65536 (memsrv MAX_HITS)。"""
-        if self.mode != 'srv' or self.srv_version != 4:
-            raise RuntimeError('设备侧扫描要求 memsrv v4')
+        if self.mode != 'srv' or self.srv_version != self.PROTOCOL_VERSION:
+            raise RuntimeError('设备侧扫描要求 memsrv v5')
         with self._lock:
             if not self.sock:
                 self.open()
-            if self.srv_version != 4:
-                raise RuntimeError('设备侧扫描要求 memsrv v4')
+            if self.srv_version != self.PROTOCOL_VERSION:
+                raise RuntimeError('设备侧扫描要求 memsrv v5')
             try:
                 hdr = struct.pack('<Q', self.SCAN_MAGIC)
                 hdr += struct.pack('<QQI', addr, size, len(needles))
@@ -545,7 +565,7 @@ class TcpChannel:
             self._capture_next_frame or not self._plan_uploaded)
         self._capture_next_frame = False
         operations = list(self._prefetch_ops)
-        if self.mode != 'srv' or self.srv_version != 4 \
+        if self.mode != 'srv' or self.srv_version != self.PROTOCOL_VERSION \
                 or not self._plan_uploaded or not operations:
             return False
         values, guard = self.execute_frame_plan(operations)
@@ -706,8 +726,8 @@ class TcpChannel:
             if not self.sock:
                 self.open()
             try:
-                if self.mode != 'srv' or self.srv_version != 4:
-                    raise RuntimeError('实时读取要求 memsrv v4')
+                if self.mode != 'srv' or self.srv_version != self.PROTOCOL_VERSION:
+                    raise RuntimeError('实时读取要求 memsrv v5')
                 results = self._batch_srv(requests)
             except Exception:
                 self.close()
@@ -737,24 +757,27 @@ class TcpChannel:
         return out
 
     def _batch_srv(self, requests: List[Tuple[int, int]]) -> List[Optional[bytes]]:
-        if self.srv_version != 4:
-            raise RuntimeError('批量读取要求 memsrv v4')
+        if self.srv_version != self.PROTOCOL_VERSION:
+            raise RuntimeError('批量读取要求 memsrv v5')
         hdr = struct.pack('<QQ', self.PACKED_READ_MAGIC, len(requests))
         hdr += b''.join(struct.pack('<QQ', a, s) for a, s in requests)
         self.sock.sendall(hdr)
         return self._read_packed_response(requests)
 
     def transaction_read(self, operations) -> List[Optional[bytes]]:
-        """在设备端顺序执行一组直接/依赖读取，仅 memsrv v4 可用。
+        """在设备端顺序执行一组直接/依赖读取，仅 memsrv v5 可用。
 
         operation 支持：
           ('direct', addr, size)
           ('deref', result_index, pointer_offset, addend, size)
+          ('array_deref', result_index, array_pointer_offset, index_offset,
+                          object_addend, size)
+          ('array_ptr', result_index, array_pointer_offset, index_offset)
         deref 会从前序结果的 pointer_offset 处读取 u64 指针，加 addend 后读取。
         整个事务在同一次主机-模拟器往返内完成；不复用任何上一帧数值。
         """
-        if self.mode != 'srv' or self.srv_version != 4:
-            raise RuntimeError('设备侧读取事务要求 memsrv v4')
+        if self.mode != 'srv' or self.srv_version != self.PROTOCOL_VERSION:
+            raise RuntimeError('设备侧读取事务要求 memsrv v5')
         if not operations:
             return []
         encoded, sizes = self._encode_operations(operations)
@@ -763,8 +786,8 @@ class TcpChannel:
         with self._lock:
             if not self.sock:
                 self.open()
-            if self.mode != 'srv' or self.srv_version != 4:
-                raise RuntimeError('设备侧读取事务要求 memsrv v4')
+            if self.mode != 'srv' or self.srv_version != self.PROTOCOL_VERSION:
+                raise RuntimeError('设备侧读取事务要求 memsrv v5')
             try:
                 payload = struct.pack('<QQ', self.TXN_READ_MAGIC,
                                       len(operations)) + b''.join(encoded)
@@ -780,9 +803,80 @@ class TcpChannel:
             (time.perf_counter() - started) * 1000.0)
         return results
 
+    def guarded_transaction_read(self, operations, guard_addr: int,
+                                 guard_size: int = 4,
+                                 max_attempts: int = 8):
+        """在一次主机往返内执行带逻辑帧守卫的动态事务。
+
+        设备在每次尝试的事务前后读取 ``guard_addr``，两值
+        相同才接受，否则在设备内重做全部 operations。返回
+        ``(results, guard)``，其中 guard 含 attempts/start/end/complete。
+
+        operations 除 direct/deref 外支持：
+
+        - ``('array_ptr', ref, array_pointer_offset, index_offset)``：返回
+          本次事务的 ``array[index]`` u64 对象指针；
+        - ``('array_deref', ref, array_pointer_offset, index_offset,
+          object_addend, size)``：直接读取本次选中对象的内容。
+        """
+        guard_addr = int(guard_addr)
+        guard_size = int(guard_size)
+        max_attempts = int(max_attempts)
+        if not operations:
+            raise ValueError('守卫事务操作不能为空')
+        if not (0 < guard_addr <= 0xFFFFFFFFFFFFFFFF):
+            raise ValueError('guard_addr 必须是正的 u64 地址')
+        if guard_size not in (4, 8):
+            raise ValueError('guard_size 必须是 4 或 8')
+        if not (1 <= max_attempts <= self.MAX_GUARD_ATTEMPTS):
+            raise ValueError(
+                f'max_attempts 必须为 1..{self.MAX_GUARD_ATTEMPTS}')
+        encoded, sizes = self._encode_operations(operations)
+        started = time.perf_counter()
+        results = None
+        with self._lock:
+            if not self.sock:
+                self.open()
+            if (self.mode != 'srv'
+                    or self.srv_version != self.PROTOCOL_VERSION):
+                raise RuntimeError('守卫读取事务要求 memsrv v5')
+            try:
+                payload = struct.pack(
+                    '<QQQII', self.GUARDED_TXN_MAGIC, len(operations),
+                    guard_addr, guard_size, max_attempts)
+                self.sock.sendall(payload + b''.join(encoded))
+                attempts, guard_start, guard_end = struct.unpack(
+                    '<QQQ', self._read_exact(24))
+                results = self._read_packed_response(
+                    [(0, size) for size in sizes])
+            except Exception:
+                self.close()
+                raise
+        direct_requests = [(0, size) for size in sizes]
+        self._record_batch_stats(
+            direct_requests, results,
+            (time.perf_counter() - started) * 1000.0)
+        return results, self._make_guard_result(
+            attempts, guard_start, guard_end, guarded=True)
+
+    @staticmethod
+    def _make_guard_result(attempts: int, guard_start: int, guard_end: int,
+                           *, guarded: bool) -> dict:
+        invalid = 0xFFFFFFFFFFFFFFFF
+        return {
+            'attempts': int(attempts),
+            'start': None if guard_start == invalid else int(guard_start),
+            'end': None if guard_end == invalid else int(guard_end),
+            'complete': (not guarded or (
+                guard_start != invalid and guard_start == guard_end)),
+        }
+
     @staticmethod
     def _encode_operations(operations):
         """编码设备侧依赖读取操作，返回 (二进制记录, 结果尺寸)。"""
+        if len(operations) > TcpChannel.MAX_REQUESTS:
+            raise ValueError(
+                f'事务操作数不能超过 {TcpChannel.MAX_REQUESTS}')
         encoded = []
         sizes = []
         for index, op in enumerate(operations):
@@ -790,19 +884,87 @@ class TcpChannel:
                 raise ValueError('空事务操作')
             if op[0] == 'direct':
                 _kind, addr, size = op
-                encoded.append(struct.pack('<IIqqQ', 0, 0, int(addr), 0,
-                                           int(size)))
-                sizes.append(int(size))
+                addr, size = int(addr), int(size)
+                if not (0 < addr <= 0x7FFFFFFFFFFFFFFF):
+                    raise ValueError('direct 地址必须是正的 int64')
+                TcpChannel._validate_operation_size(size)
+                encoded.append(struct.pack(
+                    '<IIqqQ', TcpChannel.TXN_KIND_DIRECT, 0, int(addr), 0,
+                    size))
+                sizes.append(size)
             elif op[0] == 'deref':
                 _kind, ref, pointer_offset, addend, size = op
-                if not (0 <= int(ref) < index):
+                ref = int(ref)
+                pointer_offset, addend, size = (
+                    int(pointer_offset), int(addend), int(size))
+                if not (0 <= ref < index):
                     raise ValueError('deref 必须引用前序事务结果')
-                encoded.append(struct.pack('<IIqqQ', 1, int(ref), int(addend),
-                                           int(pointer_offset), int(size)))
-                sizes.append(int(size))
+                if not (0 <= pointer_offset <= 0x7FFFFFFFFFFFFFFF - 7):
+                    raise ValueError('deref 指针偏移越界')
+                if not (-0x8000000000000000 <= addend <= 0x7FFFFFFFFFFFFFFF):
+                    raise ValueError('deref addend 越界')
+                TcpChannel._validate_operation_size(size)
+                encoded.append(struct.pack(
+                    '<IIqqQ', TcpChannel.TXN_KIND_DEREF, ref, addend,
+                    pointer_offset, size))
+                sizes.append(size)
+            elif op[0] == 'array_deref':
+                (_kind, ref, array_pointer_offset, index_offset,
+                 object_addend, size) = op
+                ref = int(ref)
+                array_pointer_offset = int(array_pointer_offset)
+                index_offset = int(index_offset)
+                object_addend = int(object_addend)
+                size = int(size)
+                if not (0 <= ref < index):
+                    raise ValueError('array_deref 必须引用前序事务结果')
+                packed_offsets = TcpChannel._pack_array_offsets(
+                    array_pointer_offset, index_offset)
+                if not (-0x8000000000000000
+                        <= object_addend <= 0x7FFFFFFFFFFFFFFF):
+                    raise ValueError('array_deref object_addend 越界')
+                TcpChannel._validate_operation_size(size)
+                encoded.append(struct.pack(
+                    '<IIqqQ', TcpChannel.TXN_KIND_ARRAY_DEREF, ref,
+                    object_addend, packed_offsets, size))
+                sizes.append(size)
+            elif op[0] == 'array_ptr':
+                _kind, ref, array_pointer_offset, index_offset = op
+                ref = int(ref)
+                if not (0 <= ref < index):
+                    raise ValueError('array_ptr 必须引用前序事务结果')
+                packed_offsets = TcpChannel._pack_array_offsets(
+                    int(array_pointer_offset), int(index_offset))
+                encoded.append(struct.pack(
+                    '<IIqqQ', TcpChannel.TXN_KIND_ARRAY_PTR, ref, 0,
+                    packed_offsets, 8))
+                sizes.append(8)
             else:
                 raise ValueError(f'未知事务操作: {op[0]}')
+        if sum(sizes) > TcpChannel.MAX_BATCH_BYTES:
+            raise ValueError(
+                f'事务总读取量不能超过 {TcpChannel.MAX_BATCH_BYTES}')
         return encoded, sizes
+
+    @staticmethod
+    def _validate_operation_size(size: int) -> None:
+        if not (0 < size <= TcpChannel.MAX_REQUEST_SIZE):
+            raise ValueError(
+                f'单个事务读取尺寸必须为 1..{TcpChannel.MAX_REQUEST_SIZE}')
+
+    @staticmethod
+    def _pack_array_offsets(array_pointer_offset: int,
+                            index_offset: int) -> int:
+        """把 array/index 在前序结果中的偏移编码到 TxnReq.offset。"""
+        if not (0 <= array_pointer_offset <= 0xFFFFFFFF - 7):
+            raise ValueError('array 指针偏移越界')
+        if not (0 <= index_offset <= 0xFFFFFFFF - 3):
+            raise ValueError('array 索引偏移越界')
+        packed = ((index_offset & 0xFFFFFFFF) << 32) \
+            | (array_pointer_offset & 0xFFFFFFFF)
+        # 协议字段是 i64；当高位置位时转为等价有符号值。
+        return packed if packed <= 0x7FFFFFFFFFFFFFFF \
+            else packed - 0x10000000000000000
 
     def upload_frame_plan(self, operations) -> None:
         """把稳定帧的依赖读取拓扑上传到设备并常驻。"""
@@ -812,8 +974,8 @@ class TcpChannel:
         with self._lock:
             if not self.sock:
                 self.open()
-            if self.mode != 'srv' or self.srv_version != 4:
-                raise RuntimeError('常驻帧计划要求 memsrv v4')
+            if self.mode != 'srv' or self.srv_version != self.PROTOCOL_VERSION:
+                raise RuntimeError('常驻帧计划要求 memsrv v5')
             try:
                 payload = struct.pack(
                     '<QQQII', self.PLAN_UPLOAD_MAGIC, len(operations),
@@ -838,8 +1000,8 @@ class TcpChannel:
         with self._lock:
             if not self.sock:
                 self.open()
-            if self.mode != 'srv' or self.srv_version != 4:
-                raise RuntimeError('常驻帧计划要求 memsrv v4')
+            if self.mode != 'srv' or self.srv_version != self.PROTOCOL_VERSION:
+                raise RuntimeError('常驻帧计划要求 memsrv v5')
             try:
                 self.sock.sendall(struct.pack('<Q', self.PLAN_EXEC_MAGIC))
                 attempts, guard_start, guard_end = struct.unpack(
@@ -853,15 +1015,9 @@ class TcpChannel:
         self._record_batch_stats(
             direct_requests, results,
             (time.perf_counter() - started) * 1000.0)
-        invalid = 0xFFFFFFFFFFFFFFFF
         guarded = bool(self._guard_addr and self._guard_size in (4, 8))
-        guard = {
-            'attempts': int(attempts),
-            'start': None if guard_start == invalid else int(guard_start),
-            'end': None if guard_end == invalid else int(guard_end),
-            'complete': (not guarded or (
-                guard_start != invalid and guard_start == guard_end)),
-        }
+        guard = self._make_guard_result(
+            attempts, guard_start, guard_end, guarded=guarded)
         return results, guard
 
     __del__ = close
@@ -1018,7 +1174,7 @@ class MemCore:
             raise RuntimeError(
                 f'已找到游戏进程 {self.package} (PID {pid})，但无法读取 /proc/{pid}/maps。'
                 '请确认 MuMu Root 权限已经开启并在开启后重启过模拟器。')
-        # maps 可读不等于 /proc/<pid>/mem 可读；只用 memsrv v4 做诊断。
+        # maps 可读不等于 /proc/<pid>/mem 可读；只用 memsrv v5 做诊断。
         readable = False
         channel = self.channel()
         for start, end, perms, _name in self.regions[:32]:
@@ -1029,20 +1185,20 @@ class MemCore:
                 break
         if not readable:
             raise RuntimeError(
-                f'ADB 和游戏进程均已找到，但 memsrv v4 无法读取 /proc/{pid}/mem。'
+                f'ADB 和游戏进程均已找到，但 memsrv v5 无法读取 /proc/{pid}/mem。'
                 'MAA 截图正常不代表具备进程内存权限；请开启 MuMu Root 权限并重启模拟器。')
         return self.pid
 
     # ---------- 内存读取 ----------
 
     def channel(self) -> TcpChannel:
-        """返回该 MemCore 唯一的 memsrv v4 通道。"""
+        """返回该 MemCore 唯一的 memsrv v5 通道。"""
         if self._chan is None:
             self._chan = TcpChannel(self)
         if not self._chan.sock:
             self._chan.open()
-        if self._chan.srv_version != 4:
-            raise RuntimeError('仅支持 memsrv v4')
+        if self._chan.srv_version != TcpChannel.PROTOCOL_VERSION:
+            raise RuntimeError('仅支持 memsrv v5')
         return self._chan
 
     def close(self) -> None:
@@ -1052,7 +1208,7 @@ class MemCore:
             self._chan = None
 
     def read(self, addr: int, size: int, timeout=30) -> Optional[bytes]:
-        """只通过 memsrv v4 读取；大块自动拆成服务端允许的 4MB 请求。"""
+        """只通过 memsrv v5 读取；大块自动拆成服务端允许的 4MB 请求。"""
         if size <= 0:
             return b''
         requests = []

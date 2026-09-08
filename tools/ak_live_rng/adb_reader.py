@@ -7,8 +7,8 @@
       'metaheap' 非 GC 的 rw 区域 (Il2CppClass 等元数据 malloc 堆)
       'gc'       il2cpp Boehm GC 堆 (匿名大 rw, Random 对象/种子数组所在)
       'rw'       全部 rw (兜底)
-  - 设备侧 memsrv v4 常驻服务: 单批请求 ~2-5ms (一个 pread64), 轮询游标无压力
-  - memsrv v4 是唯一 ADB 内存后端；握手或通道失败直接报错
+  - 设备侧 memsrv v5 常驻服务: 单批请求 ~2-5ms (一个 pread64), 轮询游标无压力
+  - memsrv v5 是唯一 ADB 内存后端；握手或通道失败直接报错
   - 无需 Windows 管理员权限
 """
 
@@ -84,11 +84,11 @@ class AdbReader:
                 raise RuntimeError("RNG reader 已关闭")
             channel = _RngTcpChannel(self.mc, port=RNG_TCP_PORT)
             channel.open()
-            if channel.srv_version != 4:
+            if channel.srv_version != TcpChannel.PROTOCOL_VERSION:
                 channel.close()
-                raise RuntimeError("RNG 读取仅支持 memsrv v4")
+                raise RuntimeError("RNG 读取仅支持 memsrv v5")
             self.chan = channel
-        status("[adb] memsrv v4 通道已建立")
+        status("[adb] memsrv v5 通道已建立")
 
     def _channel(self):
         with self._channel_lock:
@@ -126,13 +126,13 @@ class AdbReader:
     def scan_regions(self, regions, needles):
         """memscan 扫描协议: 在 regions 内搜索全部 needles (bytes, 1..64B)。
 
-        下沉到设备侧 memsrv v4 执行 (内部 4MB 滑动窗口+64B 重叠, 跨块不漏)；
+        下沉到设备侧 memsrv v5 执行 (内部 4MB 滑动窗口+64B 重叠, 跨块不漏)；
         合并相邻块减少往返与边界漏报。服务或通道异常直接上抛。"""
         if not needles:
             return {}
         channel = self._channel()
-        if channel.srv_version != 4:
-            raise RuntimeError("RNG 扫描仅支持 memsrv v4")
+        if channel.srv_version != TcpChannel.PROTOCOL_VERSION:
+            raise RuntimeError("RNG 扫描仅支持 memsrv v5")
         merged = []
         for base, size in sorted(regions):
             if (merged and base == merged[-1][0] + merged[-1][1]

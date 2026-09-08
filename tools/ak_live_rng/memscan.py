@@ -19,7 +19,7 @@
 
 读取协议: reader 需实现 read(addr, size) + regions(scope);
   若额外实现 scan_regions(regions, needles) -> {needle: [addr...]} (adb 后端
-  的设备侧 memsrv v4, 见 tools/enemy_health/memsrv.c), 三遍扫描全部下沉到
+  的设备侧 memsrv v5, 见 tools/enemy_health/memsrv.c), 三遍扫描全部下沉到
   设备执行 (3.7GB rw 全扫 ~12s, 对比 adb forward 直读 ~4min);
   PymemReader / FakeMem 等非 ADB 读取器未实现该接口时使用本地 Python 扫描。
 
@@ -150,7 +150,7 @@ def read_klass(reader, obj_addr):
 # ---------------- 设备侧 / python 扫描统一入口 ----------------
 
 def _scan_needles(reader, scope, needles, status=lambda m: None, label="扫描"):
-    """若读取器实现 scan_regions，则使用设备侧 memsrv v4 扫描。
+    """若读取器实现 scan_regions，则使用设备侧 memsrv v5 扫描。
 
     返回 {needle: [命中地址...]}。命中不做对齐过滤, 由调用方按需筛选
     (memsrv 对全 8 字节针只回报对齐命中, 与客户端校验一致)。ADB 读取器

@@ -20,10 +20,10 @@ MuMu 模拟器 (Android)
 兜底；它会将第一遍扫描落盘为临时快照，后续阶段在本地重放。
 
 内存读取只有一个后端：
-- **memsrv v4 `poll_fast()`**（后端主程序默认）：常驻 TCP 通道（`adb forward tcp:27271`）；
+- **memsrv v5 `poll_fast()`**（后端主程序默认）：常驻 TCP 通道（`adb forward tcp:27271`）；
   详情重型数据使用独立 `27274` 通道，不阻塞主轮询。
   `memsrv.c` 交叉编译为 aarch64 静态程序（`bin/memsrv`），由 `nc -L` 以
-  socket 为 stdin/stdout 启动并只接受 `AKMSRV4` 握手。v4 提供合并读取、
+  socket 为 stdin/stdout 启动并只接受 `AKMSRV5` 握手。v5 提供合并读取、
   常驻依赖计划、设备内帧一致性重试与模式扫描。旧协议、shell/dd 和 ADB 内存读取均不支持；
   二进制缺失、版本不符或通道失败会直接报错并停止发布快照。
   后端按 `1/60s` 固定截止线采样。敌方与我方容器、全部实体主块、属性、状态、
@@ -33,7 +33,7 @@ MuMu 模拟器 (Android)
   完整敌我读取后再次读取固定逻辑帧；若暂停边界跨帧则立即重读，连续三次仍不
   一致的混合快照不会发布到界面。GUI 信号只保留最新完整快照，避免旧帧排队。
   状态栏显示实际采样 Hz、完整帧耗时、batch/读取数、I/O 耗时和暂停帧一致性。
-  只有 memsrv v4 会标记为“完整60Hz”。
+  只有 memsrv v5 会标记为“完整60Hz”。
   新刷敌人的 ID 字符串等不可变身份数据仍只在首次解析，失败会在后续帧重试。
 ### memsrv 构建（已提供预编译 `bin/memsrv`，仅修改 memsrv.c 后需要）
 
@@ -75,6 +75,8 @@ python run.py
 - 当前 Scheduler 队列内的敌人显示精确剩余游戏秒数；分支、死亡转换或召唤显示真实等待条件，不伪造秒数
 - **离场敌方不显示**默认勾选；取消后显示完整历史及离场前最后一帧数据
 - 敌方与我方表格使用同一份完整快照以 60Hz 增量展示：名称/编号/ID/坐标/血条/攻击/防御/法抗/移速/攻速/状态/技能/Buff 与伤害统计
+- 敌人表在“精确坐标”后显示**意图终点、当前路线、下一路点、下一检查点、检查点倒计时**；v5 在设备侧按本帧 CursorIndex 动态读取检查点，并用逻辑帧与路径身份首尾校验，失败时立即显示“同步重试”，绝不沿用上一帧路线
+- WebSocket `enemy_pathing` 主题默认 30Hz、最高 60Hz，提供结构化 `sampleFrame`、路线、格子、检查点以及秒/帧倒计时，不公开任何内存地址
 - **显示列**可逐项勾选全部最终属性、异常状态、状态免疫、护盾，以及神经/侵蚀/灼燃/凋亡/狂躁五类损伤条；主表按与游戏 HUD 一致的“剩余/上限（剩余比例）”显示，选择会持久化。对话框右侧的**显示顺序**列表支持拖动调列序（敌方与干员表各自独立持久化），新勾选的列排在末尾，“恢复默认/全部显示”等预设同时把顺序重置为定义顺序
 - **精英/Boss 损伤上限**优先使用运行时 `m_epArray[NONE]`，不再被静态 `MAX_EP=1000` 覆盖；鼠王等单位可正确显示 2000 上限
 - **伤害护盾**同时显示统一 `ShieldUIController` 护盾与旧式特殊护盾。鼠王的法术屏障由三个 `mousek_shield[a/b/c]` Buff 分段保存，工具首次识别后直接轮询 Blackboard 动态值并汇总，不会每帧重扫 Buff 链
@@ -129,7 +131,7 @@ enemy_health/
 ├── main.py              # CLI 扫描诊断入口
 ├── memcore.py           # ADB 内存读取底层 (maps/dd/字符串/klass/TcpChannel)
 ├── memsrv.c             # 设备侧常驻内存服务源码 (zig cc 交叉编译为 bin/memsrv)
-├── enemy_reader.py      # 敌人定位（并行 bootstrap）+ memsrv v4 轮询（poll_fast）
+├── enemy_reader.py      # 敌人定位（并行 bootstrap）+ memsrv v5 轮询（poll_fast）
 ├── enemy_db.py          # enemy_handbook_table 解析 (ID->中文名/编号/描述)
 ├── game_structs.py      # IL2CPP 结构偏移定义 (全部实测验证)
 └── README.md            # 本文件
