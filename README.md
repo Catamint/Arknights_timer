@@ -33,16 +33,16 @@
 
 ## 战斗模拟器（Ark_emulator/）
 
-数据驱动的明日方舟战斗模拟器：按 30Hz 逻辑 tick 复现**敌方/我方全部行为、
-增益减益、环境机制（PRTS 调度、宝石、污染区等）**，支持选择关卡、自定义
-编队、自定义关卡敌人，并实时对外输出完整战场快照。核心用途：AI 打图分析、
-机制研究、数据验证。
+当前开发底座为独立 **V2 `ark_sim`**。干员、敌人、技能、Buff 和状态机由内容定义组合，
+数值通过可替换的表达式、计算图和算法提供器执行；按关卡收集依赖并逐步验证。
 
-- **关卡覆盖**：官方 3864 关全部可加载（主线/活动/hard/训练/肉鸽等）。
-- **完整机制**：敌方 1651 技能零 no-op、干员 454 名全量可用、3-tick 索敌
-  门控、元素损伤、推拉/位移、buff 模板引擎（可玩内容零未实现节点）。
-- **AI 接口**：`AgentEnv` + `GreedyDefender`/`BeamAgent` 可直接打图。
-- **实时输出**：`snapshot()` JSON 快照 + LiveServer（HTTP+SSE）。
+- **入口**：`Compiler` / `Engine` Python API，以及 `validate`、`explain`、`preview`、`run`、`replay` CLI。
+- **自定义**：任意单位 ID、属性与资源、组合技能、局部规则和整条计算管线。
+- **验收**：2026-10-02 的 332 项 V2 测试通过；0-1 夜刀与克洛丝模型 11 击杀、零漏怪，检查点续跑与完整事件回放一致。
+- **准确性范围**：当前是模型验证，真实客户端的命中帧、移动、教程和随机调用仍需校准。
+
+**V1 `ark_emulator` 及阶段一原型已标记为历史实现，仅用于离线数据提取和代码、行为样本参考。**
+旧网页、`Simulator`、`AgentEnv` 和旧测试不作为新功能入口或 V2 验收依据；后续模拟器开发统一在 V2 进行。
 
 快速开始与用法见 [Ark_emulator/README.md](Ark_emulator/README.md)。
 
@@ -247,7 +247,8 @@ python build_exe.py
 
 明日方舟数据分两层：**基础包**（大版本，随安装/重装更新）与**热更包**
 （每次热更新下载，覆盖同名表）。模拟器同步 = 重新解包 base+hot → 重建解析
-JSON → 刷新模拟器数据文件 → 全量验证。步骤：
+JSON → 更新 V2 关卡内容包 → 验证该关卡依赖与模型。V1 目录中的提取产物可作为离线输入，
+新增机制与算法统一在 `ark_sim` 和 V2 内容包中实现。步骤：
 
 ### 1. 解包数据表（exportRaw，base 与 hot 各跑一遍）
 
@@ -279,9 +280,9 @@ python extract_enemy_data.py       # enemy_database/stage_enemy_usage/levels 等
 python build_sim_bundle.py         # stage_sim_bundle.json（模拟器关卡 bundle）
 ```
 
-### 4. 刷新模拟器数据文件（新增机制/新 prefab 时按需）
+### 4. 更新离线提取产物与 V2 内容包
 
-对应生成脚本（均为解包中间产物的后处理）：
+下表为历史数据提取产物及生成脚本，可继续作为离线转换输入；其存放在 V1 目录不表示 V2 依赖旧运行时：
 
 | 模拟器数据文件 | 生成来源 |
 |---|---|
@@ -291,17 +292,22 @@ python build_sim_bundle.py         # stage_sim_bundle.json（模拟器关卡 bun
 | `Ark_emulator/ark_emulator/data_env_systems.json` | `[uc]envsystems` AB 的 UnityPy typetree 导出 |
 | `Ark_emulator/ark_emulator/data_projectile_speeds.json` 等 | 弹道/Spine 事件提取脚本 |
 
-### 5. 全量验证
+新内容转换为 `Ark_emulator/packages/` 下的 V2 定义，保留数据来源摘要与校准状态。
+首关内容为 `packages/ark_content/level_main_00_01.json`，创作和导入边界见
+[V2 作者指南](Ark_emulator/docs/V2_AUTHORING.md)。
+
+### 5. 验证 V2 内容与底座
 
 ```bash
 cd Ark_emulator
-python tools/scan_unhandled.py --ticks 600 --workers 4   # 全 3864 关未实现节点扫描
-python -m pytest tests                                   # 全量回归
+python -m ark_sim validate packages/ark_content/level_main_00_01.json
+python -m pytest tests_v2 -q
+python tools/verify_v2_baseline.py
 ```
 
-期望：`scan_unhandled` 报告 **0 未实现节点**、回归全绿。若新版本新增机制
-导致未实现节点 > 0，在 `ark_emulator/buff_templates.py`（或
-`action_nodes.py`）补齐对应 handler 后复扫。
+按关卡检查实际引用的技能、Buff、状态机与数值契约，保存运行、回放与客户端对照证据。
+新机制在 V2 的内容、规则或领域模块中实现。V1 的扫描工具与覆盖数字属于历史参考，
+不能替代 V2 能力预检与当前验收。
 
 ### 6. 内存工具偏移更新（可选，结构变化时）
 
@@ -318,8 +324,8 @@ python -m tools.enemy_health.update_from_unpack --assets <热更解包目录>
   `zz_hot_*` 在 base 之后），并重跑 `extract_tables.py`。
 - **新活动关卡缺失**：活动数据未下载时客户端无对应表，需先进游戏下载该
   活动资源再解包（参考覆潮之下 OD-8 的处理）。
-- **模拟器未实现节点增多**：多为新活动专属 buff 节点，按需在
-  `buff_templates.py` 补 handler；肉鸽 buff 已全量计入。
+- **新关卡缺少模拟能力**：根据 V2 编译器报告的实际依赖补内容、规则或领域原语，
+  再补独立预期与关卡验收；历史 V1 handler 仅用于查阅行为与提取数据。
 
 ## WebSocket 接口
 

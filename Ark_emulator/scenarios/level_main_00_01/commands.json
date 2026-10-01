@@ -1,0 +1,20 @@
+[
+  {
+    "at": 0,
+    "action": "deploy",
+    "entity": "unit/char_502_nblade",
+    "row": 3,
+    "col": 3,
+    "facing": "right",
+    "alias": "nblade"
+  },
+  {
+    "at": 180,
+    "action": "deploy",
+    "entity": "unit/char_124_kroos",
+    "row": 1,
+    "col": 3,
+    "facing": "down",
+    "alias": "kroos"
+  }
+]

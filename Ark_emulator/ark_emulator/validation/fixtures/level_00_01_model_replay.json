@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "levelId": "level_main_00-01",
+  "contentDigest": "8a8bed878eccd6b804743d0efd713331cb96f19cbb091227077764338783a07a",
+  "mechanicsVersion": "core_v1",
+  "seed": 123,
+  "squad": [
+    {
+      "charId": "char_502_nblade",
+      "level": 30
+    },
+    {
+      "charId": "char_124_kroos",
+      "level": 40
+    }
+  ],
+  "untilTick": 2398,
+  "commands": [
+    {
+      "tick": 0,
+      "action": {
+        "type": "deploy",
+        "charId": "char_502_nblade",
+        "row": 3,
+        "col": 3,
+        "direction": 1,
+        "skillIndex": null
+      },
+      "ok": true,
+      "result": 1
+    },
+    {
+      "tick": 180,
+      "action": {
+        "type": "deploy",
+        "charId": "char_124_kroos",
+        "row": 1,
+        "col": 3,
+        "direction": 2,
+        "skillIndex": null
+      },
+      "ok": true,
+      "result": 3
+    }
+  ],
+  "evidenceKind": "model_regression",
+  "gameVerified": false
+}

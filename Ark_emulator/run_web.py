@@ -1,4 +1,4 @@
-"""Launch the Ark_emulator real-time web console."""
+"""Historical V1 web console, retained only as a behavior reference."""
 
 import argparse
 import time
@@ -9,12 +9,13 @@ from ark_emulator.live_server import LiveServer
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Ark_emulator web console")
-    parser.add_argument("--level", default="level_main_01-01",
+    parser = argparse.ArgumentParser(description="V1 历史网页参考；当前模拟器底座为 ark_sim V2")
+    parser.add_argument("--level", default="level_main_00-01",
                         help="initial level id")
     parser.add_argument("--port", type=int, default=8794)
     parser.add_argument("--no-browser", action="store_true")
     args = parser.parse_args()
+    print("[V1 历史参考] 本入口用于查阅旧行为；当前开发入口为 python -m ark_sim。")
 
     sim = Simulator(level_id=args.level)
     server = LiveServer(sim, port=args.port, speed=1.0)

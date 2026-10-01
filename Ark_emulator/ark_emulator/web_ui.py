@@ -17,7 +17,7 @@ PAGE = """<!DOCTYPE html>
 <html lang="zh">
 <head>
 <meta charset="utf-8">
-<title>Ark_emulator battlefield</title>
+<title>V1 historical reference - Ark_emulator battlefield</title>
 <style>
 body{font-family:'Segoe UI',system-ui;background:#1a1d26;color:#e8eaf0;margin:0}
 #top{display:flex;gap:10px;padding:8px 14px;background:#22263a;align-items:center;flex-wrap:wrap}
@@ -43,7 +43,7 @@ td.route{outline:1px dashed #9fc080;background-image:radial-gradient(circle,#9fc
 </head>
 <body>
 <div id="top">
-  <b>Ark_emulator</b>
+  <b>V1 历史参考 · Ark_emulator</b>
   <input id="search" placeholder="search level (1-1, 4-3)">
   <button onclick="searchLevel()">search</button>
   <select id="level"></select>
@@ -215,7 +215,7 @@ EDITOR_PAGE = """<!DOCTYPE html>
 <html lang="zh">
 <head>
 <meta charset="utf-8">
-<title>Ark_emulator - custom level editor</title>
+<title>V1 historical reference - custom level editor</title>
 <style>
 body{font-family:'Segoe UI',system-ui;background:#1a1d26;color:#e8eaf0;margin:0}
 #top{display:flex;gap:8px;padding:8px 14px;background:#22263a;align-items:center;flex-wrap:wrap}

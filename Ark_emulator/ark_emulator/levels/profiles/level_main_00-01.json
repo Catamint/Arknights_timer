@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "levelId": "level_main_00-01",
+  "stageId": "main_00-01",
+  "name": "0-1",
+  "server": "cn",
+  "gameVersion": "unverified",
+  "mechanicsVersion": "core_v1",
+  "status": "model_implemented",
+  "operators": ["char_502_nblade", "char_124_kroos", "char_123_fang", "char_120_hibisc"],
+  "buildConstraints": {"phase": 0, "potential": 0, "trust": 0, "modules": false, "skillIndex": 0, "skillLevels": [1, 7]},
+  "enemyKeys": ["enemy_1007_slime", "enemy_1002_nsabr"],
+  "modelTests": ["tests/test_modular_core.py", "tests/test_modular_adapters.py"],
+  "gameEvidence": [],
+  "pendingCalibration": ["enemy OnAttack timing", "spawn randomization", "animation scaling", "projectile speed", "tutorial control timing"]
+}

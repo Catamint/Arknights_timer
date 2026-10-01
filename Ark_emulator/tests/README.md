@@ -1,4 +1,8 @@
-# tests — 回归测试
+# tests — V1 历史回归
+
+本目录测试保留为旧实现行为样本，不作为 V2 开发的通过条件或能力证据。
+后续模拟器测试写入 `tests_v2/`，运行 `python -m pytest tests_v2 -q`。
+下文是历史测试分组与旧扫描流程。
 
 `pytest` 驱动（`python -m pytest tests`，全量约 8 分钟）。每轮改造按
 `docs/TEST_SCOPING.md` 的领域映射跑定向回归；改动影响 battle 核心/通用

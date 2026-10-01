@@ -1,5 +1,16 @@
 # Arknights 干员数据解析工具
 
+## 战斗模拟器开发基线
+
+`Ark_emulator/ark_sim`（V2）是后续战斗仿真开发的统一底座。进入模拟器目录前阅读
+[Ark_emulator/AGENTS.md](Ark_emulator/AGENTS.md)，实际能力与入口见
+[V2 实现说明](Ark_emulator/docs/V2_IMPLEMENTATION.md)。
+
+`Ark_emulator/ark_emulator`（V1，包括阶段一原型）、旧网页、旧 AI 接口和旧测试为历史实现，
+仅用于离线数据提取和代码、行为样本参考。新功能、规则修复、干员和关卡扩展、UI/AI 接入与验收使用 V2；
+V2 运行时不得导入 V1 战斗、地图、技能、Buff、波次或 RNG 实现。
+此处的 V1/V2 指战斗模拟器，不涉及内存工具协议或服务器 API 的版本号。
+
 ## 使用方法
 
 ### 批量提取我方全部数据（干员/技能/装置/装备/模组）

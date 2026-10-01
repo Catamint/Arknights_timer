@@ -1,4 +1,10 @@
-# ark_emulator — 模拟器核心包
+# ark_emulator — V1 历史实现
+
+本目录已归为历史实现，包含原引擎及阶段一原型，仅用于离线数据提取和代码、行为样本参考。
+后续模拟器开发统一使用 **V2 `ark_sim`**，入口与边界见 [V2 实现说明](../docs/V2_IMPLEMENTATION.md)
+和 [V1 历史说明](../docs/V1_HISTORY.md)。旧模块说明和覆盖数字不代表 V2 的能力或客户端准确性。
+
+下文保留原模块清单，供查找数据与实现来源。
 
 数据驱动的明日方舟战斗模拟核心。全部机制按 30Hz 逻辑 tick 驱动，数据来自
 `ark_parser/enemy/data`（关卡/敌人/技能）与 `ark_parser/character/data`

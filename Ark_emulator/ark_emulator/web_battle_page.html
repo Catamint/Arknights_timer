@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#111317">
-  <title>罗德岛战术演算终端</title>
+  <title>V1 历史参考 · 罗德岛战术演算终端</title>
   <style>
     :root {
       color-scheme: dark;
@@ -823,7 +823,7 @@
       $('deck').innerHTML = roster.length ? roster.map((member, i) => {
         const info = app.operatorCatalog.get(member.charId) || member;
         const unit = deployed.get(member.charId), cd = cooldowns.get(member.charId) || 0;
-        const dp = Number(info.cost ?? unit?.cost ?? 0), affordable = Number(app.snapshot?.cost || 0) >= dp;
+        const dp = Number(app.snapshot?.deployCosts?.[member.charId] ?? info.cost ?? unit?.cost ?? 0), affordable = Number(app.snapshot?.cost || 0) >= dp;
         const available = !unit && !cd && affordable && !app.snapshot?.finished;
         const status = unit ? (unit.activeSkill ? '技能中' : `${unit.state || '场上'} · 阻挡 ${unit.blockedEnemies?.length || 0}`) : cd ? `再部署 ${Number(cd).toFixed(1)}s` : affordable ? '就绪 · 拖到地图部署' : `费用不足 · 需要 ${dp} DP`;
         return `<button class="deck-card ${app.selectedOperator?.charId === member.charId ? 'active' : ''} ${cd ? 'cooldown' : ''}" data-deck="${i}" data-deployable="${available}">
@@ -989,8 +989,9 @@
         ${skills.length ? `<div class="subhead">技能</div>${skills.map((sk, i) => {
           const equipped = u.equippedSkillIndex == null || Boolean(sk.equipped);
           const deployOnly = Number(sk.spType) === 0 || Number(sk.spType) === 8;
-          const ready = !isEnemy && equipped && !deployOnly && !u.activeSkill && Number(u.sp) >= Number(sk.spCost || 0) && Number(sk.cooldownRemaining || 0) <= 0;
-          const actionText = !equipped ? '未携带' : deployOnly ? (Number(sk.spType) === 8 ? '部署时触发' : '被动技能') : u.activeSkill ? '技能进行中' : ready ? '释放技能' : '尚未就绪';
+          const automatic = Boolean(sk.automatic);
+          const ready = !isEnemy && equipped && !deployOnly && !automatic && !u.activeSkill && Number(u.sp) >= Number(sk.spCost || 0) && Number(sk.cooldownRemaining || 0) <= 0;
+          const actionText = !equipped ? '未携带' : deployOnly ? (Number(sk.spType) === 8 ? '部署时触发' : '被动技能') : automatic ? '自动触发' : u.activeSkill ? '技能进行中' : ready ? '释放技能' : '尚未就绪';
           return `<div class="skill-card ${equipped && u.equippedSkillIndex != null ? 'equipped' : ''}"><div class="skill-top"><b>S${i + 1} · ${esc(sk.name || sk.skillId)}</b><small>${equipped && u.equippedSkillIndex != null ? '已携带 · ' : ''}${fmt(u.sp)} / ${fmt(sk.spCost)} SP</small></div>
             <div class="progress"><i style="width:${pct(u.sp, sk.spCost)}%;background:var(--accent)"></i></div>
             ${isOperator ? `<button data-skill="${i}" ${ready ? '' : 'disabled'}>${actionText}</button>` : ''}</div>`;

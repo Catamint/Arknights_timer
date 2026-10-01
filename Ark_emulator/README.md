@@ -1,135 +1,116 @@
-# Ark_emulator — 明日方舟战斗模拟器
+# ArkSim 通用模拟底座
 
-数据驱动的明日方舟战斗模拟器：**加载真实关卡数据、按 30Hz 逻辑 tick 模拟
-敌方/我方全部行为（移动、攻击、技能、阻挡、位移、增益减益、元素损伤、
-环境机制），支持自定义编队与自定义敌人，并实时对外输出完整战场快照**。
-核心用途：AI 打图分析、机制研究、数据验证。
+项目的主入口是独立 V2 包 **`ark_sim`**。单位、干员、敌人、技能、Buff 和状态图通过内容定义组合；属性、资源、伤害、时间、空间与结算通过规则集、表达式、计算图和提供器执行。明日方舟作为一个可替换预设接入，内容覆盖按关卡推进，首个官方基线为 **0-1**。
 
-## 功能
+V2 已有可运行的内容编译器、通用内核、领域系统、规则运行时、Python API 和 CLI。新的执行路径不导入旧 `ark_emulator` 的战斗、技能、Buff、地图、波次或随机数实现。离线导入器可以读取既有 JSON 提取产物。
 
-- **选择关卡**：加载官方关卡数据（主线/活动/hard/训练等，共 3864 关），
-  波次、路线、runes、全局 buff、预部署全部还原。
-- **自定义编队**：`squad=[{"charId","phase","level","potential"}]` 注入任意
-  干员（454 名全部可部署并激活技能）。
-- **自定义关卡敌人**：`custom_enemies=[{"key","count","startTime",
-  "attributes"}]` 覆盖敌人属性/数量/出场时间。
-- **实时快照**：`snapshot()` 输出全战场 JSON（干员/敌人/弹道/波次/buff/
-  异常/技能/PRTS/宝石/污染区/沙盒/肉鸽状态等）；LiveServer 提供 HTTP+SSE
-  实时推送，`POST /action` 支持部署/技能/撤退。
-- **暂停/单步/继续**：`pause() / step(n) / resume()`。
-- **AI 接口**：`AgentEnv` + `GreedyDefender`/`BeamAgent`，可直接打图。
+当前证据属于模型验证。2026-10-02 的 V2 测试 332 项全部通过；0-1 两人模型已 11 击杀、零漏怪清场，并通过检查点续跑与完整事件回放。真实客户端的命中帧、移动、出生偏移、教程时序等仍需对照；内容导入、内部测试和确定回放不等同于全游戏完整还原。
 
-## 核心设计
+- [V2 实际实现与运行](docs/V2_IMPLEMENTATION.md)
+- [内容、规则、Builder 与 CLI 作者指南](docs/V2_AUTHORING.md)
+- [当前需求](docs/REQUIREMENTS.md)
+- [V2 架构设计](docs/ARCHITECTURE_V2.md)
+- [全部文档索引](docs/README.md)
 
-- 固定 **30Hz 粗逻辑**（`consts.TIME_ROUGH_LOGIC_RATE=30`），每 tick 依次
-  处理：波次 → 敌方 AI（技能/移动/攻击）→ 干员 → 阻挡 → buff → 弹道 →
-  地形 → 费用 → 结算。
-- 索敌：阻挡优先 → 特殊优先级 → 仇恨值 → 最早出现；目标选择器按
-  `SelectorTrigger.SEARCH_TARGET_TICK=3`（0.1s）门控重搜。
-- 伤害：物理/法术/真实/元素四类，攻防公式、法抗、闪避、5% 保底全部还原。
-- 事件总线 `EventBus`：所有行为发事件（攻击/伤害/技能/刷怪/漏怪…），
-  AI 与外部客户端可订阅。
+## 快速运行 V2
 
-## 目录结构
+以下命令使用项目已有的 Python 环境，在模拟器目录执行：
 
-```
-Ark_emulator/
-├── ark_emulator/          # 模拟器核心包
-│   ├── consts.py          # 常量/枚举（30Hz、索敌门控、异常标志）
-│   ├── attributes.py      # 属性 + 四层 modifier
-│   ├── battle.py          # BattleController（tick 主循环/波次/结算）
-│   ├── api.py             # Simulator 门面（deploy/withdraw/activate_skill）
-│   ├── entities.py        # Unit / Enemy / Operator / Token
-│   ├── map.py             # 地图/流场寻路
-│   ├── waves.py           # 波次时间轴（chained 模型）
-│   ├── ai.py              # 敌方 AI（移动/普攻/受控状态）
-│   ├── skills.py          # 敌方技能（1651 个，零 no-op）
-│   ├── operator_skills.py # 干员技能/SP/金币等
-│   ├── targeting.py       # 索敌/仇恨/3-tick 门控
-│   ├── buffs.py           # Buff/异常/元素条
-│   ├── buff_templates.py  # buff 模板引擎（1341 种节点，可玩内容零未实现）
-│   ├── damage.py          # 伤害公式
-│   ├── projectiles.py     # 弹道
-│   ├── prts.py            # 主线 15 章 PRTS 脚本调度
-│   ├── act31.py           # Act31Side 污染区（13-04 hard）
-│   ├── act35.py           # Act35Side 宝石机制（15-18）
-│   ├── action_nodes.py    # xLua 动作节点执行器
-│   ├── loader.py          # DataStore（bundle/敌人/技能/关卡，进程级缓存）
-│   ├── live_server.py     # HTTP + SSE 实时服务
-│   ├── web_ui.py          # 编辑器页面
-│   ├── agent_env.py       # AI 环境（step/reward/done）
-│   └── agents.py          # 脚本化 agent
-├── tests/                 # 735 项回归测试（pytest，约 8 分钟）
-├── docs/                  # MECHANICS / DELIVERABLES_AUDIT / TEST_SCOPING
-├── examples/              # 示例（demo / agent / run_sim / bot）
-├── tools/                 # scan_unhandled.py（全关卡未实现节点扫描）
-├── custom_levels/         # 自定义关卡样例
-└── data_raw/              # 解包原始数据（enm_pfb 等，体积大不入库）
+```powershell
+cd D:\Arknights\Arknights_timer\Ark_emulator
+
+# 检查内容、规则、引用、提供器与实际需要的计算接口
+..\.venv\Scripts\python.exe -m ark_sim validate packages/custom/custom_guard.json
+
+# 查看加载的依赖与全局、场景和局部规则
+..\.venv\Scripts\python.exe -m ark_sim explain packages/custom/custom_guard.json --output dependencies.json
+
+# 运行同一内容，并导出快照与输入回放
+..\.venv\Scripts\python.exe -m ark_sim run packages/custom/custom_guard.json --seconds 1 --output sandbox_standard.json --replay-output sandbox_replay.json
+
+# 切换整条伤害计算管线，继续使用相同单位、技能与场景
+..\.venv\Scripts\python.exe -m ark_sim run packages/custom/custom_guard.json --ruleset ruleset/custom_balance --seconds 1 --output sandbox_balanced.json
+
+# 使用记录里的种子、时间、命令和身份重放
+..\.venv\Scripts\python.exe -m ark_sim replay packages/custom/custom_guard.json --record sandbox_replay.json --output sandbox_replayed.json
 ```
 
-## 快速开始
+CLI 提供 `validate`、`explain`、`preview`、`run`、`replay`。`--output` 保存 JSON，省略时打印结果。`run --ticks` 推进整数逻辑时间，`--seconds` 通过所选 `time.quantize` 计算规则换算；规则集的 `quantum` 决定逻辑时间单位。`replay` 必须提供 `--record`，不能额外更改种子或终点。参数详情可用 `python -m ark_sim --help` 和各子命令的 `--help` 查看。
 
-```bash
-# 启动实时网页战斗控制台（默认自动打开浏览器）
-python run_web.py
+`preview` 的输入可使用 JSON 文件。例如将以下内容保存为 `inputs.json`：
 
-# 运行一个关卡（自动部署示例编队）
-python examples/demo_main_01-01.py
-
-# AI 打图（GreedyDefender）
-python examples/agent_play.py --level level_main_01-01
-
-# 启动 LiveServer（浏览器打开 http://127.0.0.1:端口/）
-python examples/run_sim.py --level level_main_15-18 --port 8787
+```json
+{"power": 100, "defense": 80, "resistance": 0, "damage_type": "physical"}
 ```
 
-网页控制台支持关卡和干员搜索、实时加入底部编队、拖拽或点击地图部署、卡片
-实时 HP/SP/冷却/费用/阻挡状态、地图实时单位/弹道显示、部署朝向、技能与撤退、
-暂停/逐帧/推进一秒、0.5～4 倍速、胜负终局提示及结构化战斗事件流。可用
-`python run_web.py --level level_main_15-18 --port 8787` 指定初始关卡和端口。
+```powershell
+..\.venv\Scripts\python.exe -m ark_sim preview packages/custom/custom_guard.json --rule rule/my_physical --inputs inputs.json
+```
 
-网页与模拟器公共 API 均使用左上角为 `(row=0, col=0)` 的坐标；官方关卡导出的
-底部原点路线与 `cells` 地图索引会在加载时统一转换，前端无需再次翻转。
+0-1 的独立内容包与固定部署操作位于 `packages/ark_content` 和 `scenarios/level_main_00_01`。可以先验证输入或运行短段调试：
 
-Python API：
+```powershell
+..\.venv\Scripts\python.exe -m ark_sim validate packages/ark_content/level_main_00_01.json
+..\.venv\Scripts\python.exe -m ark_sim run packages/ark_content/level_main_00_01.json --commands scenarios/level_main_00_01/commands.json --ticks 300 --output ark_00_01_preview.json
+```
+
+首关的模型验收结果和待校准项以 [V2 实现说明](docs/V2_IMPLEMENTATION.md) 及对应证据为准。运行到某个时间点本身不表示首关完整验收通过。
+
+## Python API 与回放身份
 
 ```python
-from ark_emulator import Simulator
+from ark_sim import Compiler, Engine
+from ark_sim.tools.replay import replay
+from ark_sim.tools.compare import first_difference
 
-sim = Simulator(level_id="level_main_01-01", squad=[
-    {"charId": "char_502_nblade", "phase": 2, "level": 50}])
-sim.battle.battle_cost_add(100)
-sim.run_ticks(30)
-sim.deploy("char_502_nblade", 3, 4)
-sim.run_ticks(600)
-print(sim.battle.finished, sim.battle.result)   # 结算
-snap = sim.battle.snapshot()                     # 全战场 JSON 快照
+program = Compiler().compile("packages/custom/custom_guard.json")
+simulation = Engine.create(program, seed=123)
+simulation.advance(30)
+snapshot = simulation.snapshot()
+record = simulation.export_replay()
+restored = replay(program, record)
+assert first_difference(snapshot, restored.snapshot()) is None
+
+checkpoint = simulation.checkpoint()
+continued = Engine.restore(program, checkpoint)
 ```
 
-## 测试与验证
+内容、规则、提供器、数值配置、随机算法或实现身份改变后，旧记录会被明确拒绝，应重新编译并生成证据。检查点恢复和首次差异报告见 [V2 实现说明](docs/V2_IMPLEMENTATION.md)。
 
-```bash
-cd Ark_emulator
-python -m pytest tests                 # 735 项全量回归（约 8 分钟）
-python tools/scan_unhandled.py --stride 1   # 全 bundle 3864 关未实现节点扫描
+常见自定义通过修改 JSON 或 Python Builder 完成：任意命名空间 ID 的单位、任意资源、组合技能、Buff、成长、单属性或单资源规则，以及完整计算管线。复杂算法通过独立提供器注册。编译器检查实际依赖和支持能力；没有实现的必需接口会报错，不会切回旧引擎。
+
+## 目录与验证
+
+```text
+Ark_emulator/
+  ark_sim/
+    kernel/       时间、World、任务、事务、事件、随机流和检查点
+    contracts/    共享定义、计算结果和变更意图
+    rules/        类型契约、表达式、计算图、作用域和数值配置
+    content/      内容读取、schema、继承、依赖与编译
+    domains/      属性、资源、技能、效果、Buff、行为、空间和生命周期
+    presets/      可替换的明日方舟算法
+    adapters/     Engine 与离线导入器
+    tools/        作者工具、CLI、回放与差异比较
+  packages/       自定义内容与转换后的关卡包
+  scenarios/      场景操作输入
+  tests_v2/       新底座的独立预期与集成验证
+  docs/           当前设计、作者指南及历史资料
+  ark_emulator/   旧实现与阶段一原型
 ```
 
-验证基线（2026-08-11）：
-- 全 bundle **3864 关零未实现 buff 节点**（`scan_unhandled.py` 实测）。
-- 敌方 **1651 个技能零 no-op**；干员 **454 名全量部署+技能激活通过**。
-- 主线 0-16 章 + 覆潮之下等全部可玩内容正常加载运行。
+运行时代码使用 Python 标准库，测试使用 `pytest`：
 
-## 范围说明（按用户确认）
+```powershell
+..\.venv\Scripts\python.exe -m pytest tests_v2 -q
+```
 
-- 肉鸽 / 保全派驻 / 卫戍协议 / 生息演算的**关卡不要求实现**；**肉鸽对应
-  buff 已全部计入**（数据中 22 类 Roguelike 节点全覆盖）。
-- 其余活动专属节点（约 700 种）仅在对应活动数据存在时按需实现。
+当前明确的边界包括完整装备、天赋与养成流程、动态引用执行、嵌套状态子图、自定义 Buff 叠层策略、中断退款或继续执行、力学位移和其他数值后端。已实现的属性层、资源、效果与整条管线仍可替换，详见 [作者指南](docs/V2_AUTHORING.md)。
 
-## 依赖
+## 历史实现
 
-- Python 3.8+（开发环境 Python 3.12）
-- 运行时仅标准库；测试用 `pytest`
+**V1 已停止作为开发底座。** `ark_emulator`（包括阶段一原型）、`examples/run_modular.py`、`run_web.py`、旧网页、AI 接口与 `tests/` 均标记为历史实现，仅用于离线数据提取和代码、行为样本参考。后续功能、公式修复、干员与关卡扩展、网页和 AI 接入统一基于 V2 `ark_sim`。
 
-## 游戏更新后如何同步
+历史目录原样保留以便追溯。其运行结果、覆盖数字和模型回放不属于 V2 验收；V2 运行时不调用旧引擎。边界与目录清单见 [V1 历史说明](docs/V1_HISTORY.md)，后续开发约定见 [AGENTS.md](AGENTS.md)。
 
-见项目根目录 [README.md](../README.md)「游戏更新后如何同步更新模拟器」。
+历史资料见 [模块化原型说明](docs/MODULAR_IMPLEMENTATION.md)、[代码审查与差距评估](docs/SIMULATION_COMPLETENESS_REVIEW.md)、[机制资料](docs/MECHANICS.md) 和 [历史交付审计](docs/DELIVERABLES_AUDIT.md)。外部工具与数据链接见 [参考资料](docs/REFERENCES.md)。

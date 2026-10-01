@@ -1,0 +1,4189 @@
+{
+  "schemaVersion": 2,
+  "status": "model_unverified",
+  "manifest": {
+    "id": "package/ark_00_01",
+    "version": "2.0.0",
+    "requires": [
+      "preset/ark_standard"
+    ],
+    "metadata": {
+      "source_hash": "f71299c156d27a03d849115df49bd53c1abff79497f233e3266dde1988f6d6fa",
+      "source": {
+        "server": "cn",
+        "gameVersion": "unverified",
+        "files": {
+          "stage_sim_bundle.json": "3e8eea830405d36a3bb0e7afb4392263f0f56f43186eac2c6fd96e2d79b6cf6e",
+          "enemy_database.json": "d796637d5ce467d738154d3a36fd1242ee6f2473b65ad7972acc10c38887e401",
+          "characters.json": "a00b44e2f8e84fdfadb07dae0571020cfb61dffe41d4e9ab2abc65742cb84cde",
+          "skills.json": "1b9d469d2ce8ac90889fc07e2980c1ecc02bf3c7056d5d56f1670fe8e32e9f35",
+          "skill_prefab_catalog.json": "4f87d7e972a0b658daa0aee14b7411796367a8e98296ec3268a09929098d4d08",
+          "data_enemy_prefab_catalog_current.json": "ebe89ba77e15541b52bf117820ecf65838c840fee6e65d397ebc46c601c17ef8",
+          "data_enemy_spine_events.json": "4d74d80e90679591111602c1f62b08a1cebfc50a5a85db940163a240d932ccb3",
+          "data_character_spine_events.json": "d7d330b62248714a865e4ceae9a9e7437b4fb481eef13b9ffd778ae8f1ae0259",
+          "data_range_table.json": "4d974598394630a1ad465b954321254397f514c7fb26cba944d320ac18b874d0",
+          "data_level_assets_index.json": "8c40b7bf517a7b493a154efa19310c458f64696d2bc2f1e80794d602206f846a"
+        }
+      }
+    }
+  },
+  "entities": [
+    {
+      "id": "unit/enemy_1007_slime",
+      "kind": "entity",
+      "tags": [
+        "enemy",
+        "ground"
+      ],
+      "components": {
+        "attributes": {
+          "base": {
+            "max_hp": 550,
+            "atk": 130,
+            "def": 0,
+            "mres": 0,
+            "attack_interval": 1.7,
+            "attack_speed_ratio": 1.0,
+            "move_speed": 1.0,
+            "block_count": 0,
+            "block_cost": 1,
+            "deploy_cost": 0,
+            "redeploy_time": 0
+          }
+        },
+        "resources": {
+          "hp": {
+            "initial": 550,
+            "capacity_attribute": "max_hp",
+            "role": "health"
+          }
+        },
+        "abilities": [
+          "ability/enemy_1007_slime_attack"
+        ],
+        "buffs": {
+          "initial": []
+        },
+        "behavior": {
+          "machine": "behavior/ground_melee"
+        },
+        "lifecycle": {
+          "policy": "policy/ark_lifecycle",
+          "leak_loss": 1
+        },
+        "spatial": {
+          "facing": "left",
+          "block_capacity": 0,
+          "block_cost": 1
+        }
+      },
+      "metadata": {
+        "native_id": "enemy_1007_slime",
+        "name": "源石虫",
+        "verification": "model_unverified"
+      }
+    },
+    {
+      "id": "unit/enemy_1002_nsabr",
+      "kind": "entity",
+      "tags": [
+        "enemy",
+        "ground"
+      ],
+      "components": {
+        "attributes": {
+          "base": {
+            "max_hp": 1650,
+            "atk": 200,
+            "def": 30,
+            "mres": 0,
+            "attack_interval": 2.0,
+            "attack_speed_ratio": 1.0,
+            "move_speed": 1.1,
+            "block_count": 0,
+            "block_cost": 1,
+            "deploy_cost": 0,
+            "redeploy_time": 0
+          }
+        },
+        "resources": {
+          "hp": {
+            "initial": 1650,
+            "capacity_attribute": "max_hp",
+            "role": "health"
+          }
+        },
+        "abilities": [
+          "ability/enemy_1002_nsabr_attack"
+        ],
+        "buffs": {
+          "initial": []
+        },
+        "behavior": {
+          "machine": "behavior/ground_melee"
+        },
+        "lifecycle": {
+          "policy": "policy/ark_lifecycle",
+          "leak_loss": 1
+        },
+        "spatial": {
+          "facing": "left",
+          "block_capacity": 0,
+          "block_cost": 1
+        }
+      },
+      "metadata": {
+        "native_id": "enemy_1002_nsabr",
+        "name": "士兵",
+        "verification": "model_unverified"
+      }
+    },
+    {
+      "id": "unit/char_502_nblade",
+      "kind": "entity",
+      "tags": [
+        "operator",
+        "ground"
+      ],
+      "components": {
+        "attributes": {
+          "base": {
+            "max_hp": 1030,
+            "atk": 232,
+            "def": 192,
+            "mres": 0,
+            "attack_interval": 1.05,
+            "attack_speed_ratio": 1.0,
+            "move_speed": 1.0,
+            "block_count": 2,
+            "block_cost": 1,
+            "deploy_cost": 7,
+            "redeploy_time": 40
+          }
+        },
+        "resources": {
+          "hp": {
+            "initial": 1030,
+            "capacity_attribute": "max_hp",
+            "role": "health"
+          }
+        },
+        "abilities": [
+          "ability/char_502_nblade_attack"
+        ],
+        "buffs": {
+          "initial": []
+        },
+        "behavior": {
+          "machine": "behavior/player_combat"
+        },
+        "lifecycle": {
+          "policy": "policy/ark_lifecycle",
+          "leak_loss": 1
+        },
+        "spatial": {
+          "facing": "right",
+          "block_capacity": 2,
+          "block_cost": 1
+        },
+        "deployable": {
+          "policy": "policy/ark_ground_deploy",
+          "base_cost": 7,
+          "cooldown_seconds": 40,
+          "refund_ratio": 0.5,
+          "terrain": "ground"
+        }
+      },
+      "metadata": {
+        "native_id": "char_502_nblade",
+        "name": "夜刀",
+        "verification": "model_unverified",
+        "elite": 0,
+        "level": 30,
+        "skill_level": 1,
+        "native_attribute_frames": [
+          {
+            "level": 1,
+            "data": {
+              "maxHp": 721,
+              "atk": 150,
+              "def": 134,
+              "magicResistance": null,
+              "cost": 7,
+              "blockCnt": 2,
+              "moveSpeed": 1.0,
+              "attackSpeed": 100.0,
+              "baseAttackTime": 1.05,
+              "respawnTime": 70,
+              "hpRecoveryPerSec": null,
+              "spRecoveryPerSec": 1.0,
+              "maxDeployCount": 1,
+              "maxDeckStackCnt": null,
+              "tauntLevel": null,
+              "massLevel": null,
+              "baseForceLevel": null,
+              "epDamageResistance": null,
+              "epResistance": null,
+              "damageHitratePhysical": null,
+              "damageHitrateMagical": null,
+              "abilityRangeForwardExtend": null,
+              "defPenetrate": null,
+              "magicResistPenetrate": null,
+              "hpRecoveryPerSecByMaxHpRatio": null,
+              "defPenetrateFixed": null,
+              "oneMinusStatusResistance": null,
+              "magicResistPenetrateFixed": null,
+              "maxEp": null,
+              "epRecoveryPerSec": null,
+              "spRecoverRatio": null,
+              "epBreakRecoverSpeed": null,
+              "slowDown": null
+            }
+          },
+          {
+            "level": 30,
+            "data": {
+              "maxHp": 1030,
+              "atk": 232,
+              "def": 192,
+              "magicResistance": null,
+              "cost": 7,
+              "blockCnt": 2,
+              "moveSpeed": 1.0,
+              "attackSpeed": 100.0,
+              "baseAttackTime": 1.05,
+              "respawnTime": 70,
+              "hpRecoveryPerSec": null,
+              "spRecoveryPerSec": 1.0,
+              "maxDeployCount": 1,
+              "maxDeckStackCnt": null,
+              "tauntLevel": null,
+              "massLevel": null,
+              "baseForceLevel": null,
+              "epDamageResistance": null,
+              "epResistance": null,
+              "damageHitratePhysical": null,
+              "damageHitrateMagical": null,
+              "abilityRangeForwardExtend": null,
+              "defPenetrate": null,
+              "magicResistPenetrate": null,
+              "hpRecoveryPerSecByMaxHpRatio": null,
+              "defPenetrateFixed": null,
+              "oneMinusStatusResistance": null,
+              "magicResistPenetrateFixed": null,
+              "maxEp": null,
+              "epRecoveryPerSec": null,
+              "spRecoverRatio": null,
+              "epBreakRecoverSpeed": null,
+              "slowDown": null
+            }
+          }
+        ],
+        "native_skills": []
+      }
+    },
+    {
+      "id": "unit/char_124_kroos",
+      "kind": "entity",
+      "tags": [
+        "operator",
+        "high"
+      ],
+      "components": {
+        "attributes": {
+          "base": {
+            "max_hp": 826,
+            "atk": 258,
+            "def": 88,
+            "mres": 0,
+            "attack_interval": 1.0,
+            "attack_speed_ratio": 1.0,
+            "move_speed": 1.0,
+            "block_count": 1,
+            "block_cost": 1,
+            "deploy_cost": 9,
+            "redeploy_time": 70
+          }
+        },
+        "resources": {
+          "hp": {
+            "initial": 826,
+            "capacity_attribute": "max_hp",
+            "role": "health"
+          },
+          "sp": {
+            "initial": 0,
+            "capacity": 5,
+            "recovery_rate": 0,
+            "recovery_rule": "rule/ark_import_resource_recovery",
+            "role": "skill_energy",
+            "recovery": {
+              "mode": "periodic",
+              "interval_seconds": 1
+            },
+            "parameters": {
+              "freeze_while_cast": true,
+              "freeze_cast_modes": [
+                "manual"
+              ]
+            }
+          }
+        },
+        "abilities": [
+          "ability/char_124_kroos_attack",
+          "ability/char_124_kroos_skill_1"
+        ],
+        "buffs": {
+          "initial": []
+        },
+        "behavior": {
+          "machine": "behavior/player_combat"
+        },
+        "lifecycle": {
+          "policy": "policy/ark_lifecycle",
+          "leak_loss": 1
+        },
+        "spatial": {
+          "facing": "right",
+          "block_capacity": 1,
+          "block_cost": 1
+        },
+        "deployable": {
+          "policy": "policy/ark_ground_deploy",
+          "base_cost": 9,
+          "cooldown_seconds": 70,
+          "refund_ratio": 0.5,
+          "terrain": "high"
+        }
+      },
+      "metadata": {
+        "native_id": "char_124_kroos",
+        "name": "克洛丝",
+        "verification": "model_unverified",
+        "elite": 0,
+        "level": 40,
+        "skill_level": 1,
+        "native_attribute_frames": [
+          {
+            "level": 1,
+            "data": {
+              "maxHp": 545,
+              "atk": 154,
+              "def": 52,
+              "magicResistance": null,
+              "cost": 9,
+              "blockCnt": 1,
+              "moveSpeed": 1.0,
+              "attackSpeed": 100.0,
+              "baseAttackTime": 1.0,
+              "respawnTime": 70,
+              "hpRecoveryPerSec": null,
+              "spRecoveryPerSec": 1.0,
+              "maxDeployCount": 1,
+              "maxDeckStackCnt": null,
+              "tauntLevel": null,
+              "massLevel": null,
+              "baseForceLevel": null,
+              "epDamageResistance": null,
+              "epResistance": null,
+              "damageHitratePhysical": null,
+              "damageHitrateMagical": null,
+              "abilityRangeForwardExtend": null,
+              "defPenetrate": null,
+              "magicResistPenetrate": null,
+              "hpRecoveryPerSecByMaxHpRatio": null,
+              "defPenetrateFixed": null,
+              "oneMinusStatusResistance": null,
+              "magicResistPenetrateFixed": null,
+              "maxEp": null,
+              "epRecoveryPerSec": null,
+              "spRecoverRatio": null,
+              "epBreakRecoverSpeed": null,
+              "slowDown": null
+            }
+          },
+          {
+            "level": 40,
+            "data": {
+              "maxHp": 826,
+              "atk": 258,
+              "def": 88,
+              "magicResistance": null,
+              "cost": 9,
+              "blockCnt": 1,
+              "moveSpeed": 1.0,
+              "attackSpeed": 100.0,
+              "baseAttackTime": 1.0,
+              "respawnTime": 70,
+              "hpRecoveryPerSec": null,
+              "spRecoveryPerSec": 1.0,
+              "maxDeployCount": 1,
+              "maxDeckStackCnt": null,
+              "tauntLevel": null,
+              "massLevel": null,
+              "baseForceLevel": null,
+              "epDamageResistance": null,
+              "epResistance": null,
+              "damageHitratePhysical": null,
+              "damageHitrateMagical": null,
+              "abilityRangeForwardExtend": null,
+              "defPenetrate": null,
+              "magicResistPenetrate": null,
+              "hpRecoveryPerSecByMaxHpRatio": null,
+              "defPenetrateFixed": null,
+              "oneMinusStatusResistance": null,
+              "magicResistPenetrateFixed": null,
+              "maxEp": null,
+              "epRecoveryPerSec": null,
+              "spRecoverRatio": null,
+              "epBreakRecoverSpeed": null,
+              "slowDown": null
+            }
+          }
+        ],
+        "native_skills": [
+          {
+            "key": "skchr_kroos_1",
+            "name": "二连射·自动",
+            "handler": "attack_burst_v1",
+            "blackboard": {
+              "atk_scale": 1.0,
+              "times": 2.0
+            },
+            "spType": 2,
+            "spCost": 5,
+            "initSp": 0,
+            "increment": 1.0,
+            "automatic": true,
+            "duration": 0
+          },
+          {
+            "key": "skchr_kroos_1",
+            "name": "二连射·自动",
+            "handler": "attack_burst_v1",
+            "blackboard": {
+              "atk_scale": 1.05,
+              "times": 2.0
+            },
+            "spType": 2,
+            "spCost": 5,
+            "initSp": 0,
+            "increment": 1.0,
+            "automatic": true,
+            "duration": 0
+          },
+          {
+            "key": "skchr_kroos_1",
+            "name": "二连射·自动",
+            "handler": "attack_burst_v1",
+            "blackboard": {
+              "atk_scale": 1.1,
+              "times": 2.0
+            },
+            "spType": 2,
+            "spCost": 5,
+            "initSp": 0,
+            "increment": 1.0,
+            "automatic": true,
+            "duration": 0
+          },
+          {
+            "key": "skchr_kroos_1",
+            "name": "二连射·自动",
+            "handler": "attack_burst_v1",
+            "blackboard": {
+              "atk_scale": 1.2,
+              "times": 2.0
+            },
+            "spType": 2,
+            "spCost": 4,
+            "initSp": 0,
+            "increment": 1.0,
+            "automatic": true,
+            "duration": 0
+          },
+          {
+            "key": "skchr_kroos_1",
+            "name": "二连射·自动",
+            "handler": "attack_burst_v1",
+            "blackboard": {
+              "atk_scale": 1.25,
+              "times": 2.0
+            },
+            "spType": 2,
+            "spCost": 4,
+            "initSp": 0,
+            "increment": 1.0,
+            "automatic": true,
+            "duration": 0
+          },
+          {
+            "key": "skchr_kroos_1",
+            "name": "二连射·自动",
+            "handler": "attack_burst_v1",
+            "blackboard": {
+              "atk_scale": 1.3,
+              "times": 2.0
+            },
+            "spType": 2,
+            "spCost": 4,
+            "initSp": 0,
+            "increment": 1.0,
+            "automatic": true,
+            "duration": 0
+          },
+          {
+            "key": "skchr_kroos_1",
+            "name": "二连射·自动",
+            "handler": "attack_burst_v1",
+            "blackboard": {
+              "atk_scale": 1.4,
+              "times": 2.0
+            },
+            "spType": 2,
+            "spCost": 4,
+            "initSp": 0,
+            "increment": 1.0,
+            "automatic": true,
+            "duration": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "unit/char_123_fang",
+      "kind": "entity",
+      "tags": [
+        "operator",
+        "ground"
+      ],
+      "components": {
+        "attributes": {
+          "base": {
+            "max_hp": 1060,
+            "atk": 235,
+            "def": 187,
+            "mres": 0,
+            "attack_interval": 1.05,
+            "attack_speed_ratio": 1.0,
+            "move_speed": 1.0,
+            "block_count": 2,
+            "block_cost": 1,
+            "deploy_cost": 9,
+            "redeploy_time": 70
+          }
+        },
+        "resources": {
+          "hp": {
+            "initial": 1060,
+            "capacity_attribute": "max_hp",
+            "role": "health"
+          },
+          "sp": {
+            "initial": 0,
+            "capacity": 30,
+            "recovery_rate": 1.0,
+            "recovery_rule": "rule/ark_import_resource_recovery",
+            "role": "skill_energy",
+            "recovery": {
+              "mode": "periodic",
+              "interval_seconds": 1
+            },
+            "parameters": {
+              "freeze_while_cast": true,
+              "freeze_cast_modes": [
+                "manual"
+              ]
+            }
+          }
+        },
+        "abilities": [
+          "ability/char_123_fang_attack",
+          "ability/char_123_fang_skill_1"
+        ],
+        "buffs": {
+          "initial": []
+        },
+        "behavior": {
+          "machine": "behavior/player_combat"
+        },
+        "lifecycle": {
+          "policy": "policy/ark_lifecycle",
+          "leak_loss": 1
+        },
+        "spatial": {
+          "facing": "right",
+          "block_capacity": 2,
+          "block_cost": 1
+        },
+        "deployable": {
+          "policy": "policy/ark_ground_deploy",
+          "base_cost": 9,
+          "cooldown_seconds": 70,
+          "refund_ratio": 0.5,
+          "terrain": "ground"
+        }
+      },
+      "metadata": {
+        "native_id": "char_123_fang",
+        "name": "芬",
+        "verification": "model_unverified",
+        "elite": 0,
+        "level": 40,
+        "skill_level": 1,
+        "native_attribute_frames": [
+          {
+            "level": 1,
+            "data": {
+              "maxHp": 742,
+              "atk": 157,
+              "def": 130,
+              "magicResistance": null,
+              "cost": 9,
+              "blockCnt": 2,
+              "moveSpeed": 1.0,
+              "attackSpeed": 100.0,
+              "baseAttackTime": 1.05,
+              "respawnTime": 70,
+              "hpRecoveryPerSec": null,
+              "spRecoveryPerSec": 1.0,
+              "maxDeployCount": 1,
+              "maxDeckStackCnt": null,
+              "tauntLevel": null,
+              "massLevel": null,
+              "baseForceLevel": null,
+              "epDamageResistance": null,
+              "epResistance": null,
+              "damageHitratePhysical": null,
+              "damageHitrateMagical": null,
+              "abilityRangeForwardExtend": null,
+              "defPenetrate": null,
+              "magicResistPenetrate": null,
+              "hpRecoveryPerSecByMaxHpRatio": null,
+              "defPenetrateFixed": null,
+              "oneMinusStatusResistance": null,
+              "magicResistPenetrateFixed": null,
+              "maxEp": null,
+              "epRecoveryPerSec": null,
+              "spRecoverRatio": null,
+              "epBreakRecoverSpeed": null,
+              "slowDown": null
+            }
+          },
+          {
+            "level": 40,
+            "data": {
+              "maxHp": 1060,
+              "atk": 235,
+              "def": 187,
+              "magicResistance": null,
+              "cost": 9,
+              "blockCnt": 2,
+              "moveSpeed": 1.0,
+              "attackSpeed": 100.0,
+              "baseAttackTime": 1.05,
+              "respawnTime": 70,
+              "hpRecoveryPerSec": null,
+              "spRecoveryPerSec": 1.0,
+              "maxDeployCount": 1,
+              "maxDeckStackCnt": null,
+              "tauntLevel": null,
+              "massLevel": null,
+              "baseForceLevel": null,
+              "epDamageResistance": null,
+              "epResistance": null,
+              "damageHitratePhysical": null,
+              "damageHitrateMagical": null,
+              "abilityRangeForwardExtend": null,
+              "defPenetrate": null,
+              "magicResistPenetrate": null,
+              "hpRecoveryPerSecByMaxHpRatio": null,
+              "defPenetrateFixed": null,
+              "oneMinusStatusResistance": null,
+              "magicResistPenetrateFixed": null,
+              "maxEp": null,
+              "epRecoveryPerSec": null,
+              "spRecoverRatio": null,
+              "epBreakRecoverSpeed": null,
+              "slowDown": null
+            }
+          }
+        ],
+        "native_skills": [
+          {
+            "key": "skcom_charge_cost[1]",
+            "name": "冲锋号令·α型",
+            "handler": "cost_skill_v1",
+            "blackboard": {
+              "cost": 6.0
+            },
+            "spType": 1,
+            "spCost": 30,
+            "initSp": 0,
+            "increment": 1.0,
+            "automatic": true,
+            "duration": 0
+          },
+          {
+            "key": "skcom_charge_cost[1]",
+            "name": "冲锋号令·α型",
+            "handler": "cost_skill_v1",
+            "blackboard": {
+              "cost": 6.0
+            },
+            "spType": 1,
+            "spCost": 29,
+            "initSp": 0,
+            "increment": 1.0,
+            "automatic": true,
+            "duration": 0
+          },
+          {
+            "key": "skcom_charge_cost[1]",
+            "name": "冲锋号令·α型",
+            "handler": "cost_skill_v1",
+            "blackboard": {
+              "cost": 6.0
+            },
+            "spType": 1,
+            "spCost": 28,
+            "initSp": 0,
+            "increment": 1.0,
+            "automatic": true,
+            "duration": 0
+          },
+          {
+            "key": "skcom_charge_cost[1]",
+            "name": "冲锋号令·α型",
+            "handler": "cost_skill_v1",
+            "blackboard": {
+              "cost": 6.0
+            },
+            "spType": 1,
+            "spCost": 27,
+            "initSp": 3,
+            "increment": 1.0,
+            "automatic": true,
+            "duration": 0
+          },
+          {
+            "key": "skcom_charge_cost[1]",
+            "name": "冲锋号令·α型",
+            "handler": "cost_skill_v1",
+            "blackboard": {
+              "cost": 6.0
+            },
+            "spType": 1,
+            "spCost": 26,
+            "initSp": 3,
+            "increment": 1.0,
+            "automatic": true,
+            "duration": 0
+          },
+          {
+            "key": "skcom_charge_cost[1]",
+            "name": "冲锋号令·α型",
+            "handler": "cost_skill_v1",
+            "blackboard": {
+              "cost": 6.0
+            },
+            "spType": 1,
+            "spCost": 25,
+            "initSp": 3,
+            "increment": 1.0,
+            "automatic": true,
+            "duration": 0
+          },
+          {
+            "key": "skcom_charge_cost[1]",
+            "name": "冲锋号令·α型",
+            "handler": "cost_skill_v1",
+            "blackboard": {
+              "cost": 6.0
+            },
+            "spType": 1,
+            "spCost": 25,
+            "initSp": 6,
+            "increment": 1.0,
+            "automatic": true,
+            "duration": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "unit/char_120_hibisc",
+      "kind": "entity",
+      "tags": [
+        "operator",
+        "high"
+      ],
+      "components": {
+        "attributes": {
+          "base": {
+            "max_hp": 975,
+            "atk": 248,
+            "def": 82,
+            "mres": 0,
+            "attack_interval": 2.85,
+            "attack_speed_ratio": 1.0,
+            "move_speed": 1.0,
+            "block_count": 1,
+            "block_cost": 1,
+            "deploy_cost": 15,
+            "redeploy_time": 70
+          }
+        },
+        "resources": {
+          "hp": {
+            "initial": 975,
+            "capacity_attribute": "max_hp",
+            "role": "health"
+          },
+          "sp": {
+            "initial": 0,
+            "capacity": 40,
+            "recovery_rate": 1.0,
+            "recovery_rule": "rule/ark_import_resource_recovery",
+            "role": "skill_energy",
+            "recovery": {
+              "mode": "periodic",
+              "interval_seconds": 1
+            },
+            "parameters": {
+              "freeze_while_cast": true,
+              "freeze_cast_modes": [
+                "manual"
+              ]
+            }
+          }
+        },
+        "abilities": [
+          "ability/char_120_hibisc_attack",
+          "ability/char_120_hibisc_skill_1"
+        ],
+        "buffs": {
+          "initial": []
+        },
+        "behavior": {
+          "machine": "behavior/player_combat"
+        },
+        "lifecycle": {
+          "policy": "policy/ark_lifecycle",
+          "leak_loss": 1
+        },
+        "spatial": {
+          "facing": "right",
+          "block_capacity": 1,
+          "block_cost": 1
+        },
+        "deployable": {
+          "policy": "policy/ark_ground_deploy",
+          "base_cost": 15,
+          "cooldown_seconds": 70,
+          "refund_ratio": 0.5,
+          "terrain": "high"
+        }
+      },
+      "metadata": {
+        "native_id": "char_120_hibisc",
+        "name": "芙蓉",
+        "verification": "model_unverified",
+        "elite": 0,
+        "level": 40,
+        "skill_level": 1,
+        "native_attribute_frames": [
+          {
+            "level": 1,
+            "data": {
+              "maxHp": 682,
+              "atk": 153,
+              "def": 61,
+              "magicResistance": null,
+              "cost": 15,
+              "blockCnt": 1,
+              "moveSpeed": 1.0,
+              "attackSpeed": 100.0,
+              "baseAttackTime": 2.85,
+              "respawnTime": 70,
+              "hpRecoveryPerSec": null,
+              "spRecoveryPerSec": 1.0,
+              "maxDeployCount": 1,
+              "maxDeckStackCnt": null,
+              "tauntLevel": null,
+              "massLevel": null,
+              "baseForceLevel": null,
+              "epDamageResistance": null,
+              "epResistance": null,
+              "damageHitratePhysical": null,
+              "damageHitrateMagical": null,
+              "abilityRangeForwardExtend": null,
+              "defPenetrate": null,
+              "magicResistPenetrate": null,
+              "hpRecoveryPerSecByMaxHpRatio": null,
+              "defPenetrateFixed": null,
+              "oneMinusStatusResistance": null,
+              "magicResistPenetrateFixed": null,
+              "maxEp": null,
+              "epRecoveryPerSec": null,
+              "spRecoverRatio": null,
+              "epBreakRecoverSpeed": null,
+              "slowDown": null
+            }
+          },
+          {
+            "level": 40,
+            "data": {
+              "maxHp": 975,
+              "atk": 248,
+              "def": 82,
+              "magicResistance": null,
+              "cost": 15,
+              "blockCnt": 1,
+              "moveSpeed": 1.0,
+              "attackSpeed": 100.0,
+              "baseAttackTime": 2.85,
+              "respawnTime": 70,
+              "hpRecoveryPerSec": null,
+              "spRecoveryPerSec": 1.0,
+              "maxDeployCount": 1,
+              "maxDeckStackCnt": null,
+              "tauntLevel": null,
+              "massLevel": null,
+              "baseForceLevel": null,
+              "epDamageResistance": null,
+              "epResistance": null,
+              "damageHitratePhysical": null,
+              "damageHitrateMagical": null,
+              "abilityRangeForwardExtend": null,
+              "defPenetrate": null,
+              "magicResistPenetrate": null,
+              "hpRecoveryPerSecByMaxHpRatio": null,
+              "defPenetrateFixed": null,
+              "oneMinusStatusResistance": null,
+              "magicResistPenetrateFixed": null,
+              "maxEp": null,
+              "epRecoveryPerSec": null,
+              "spRecoverRatio": null,
+              "epBreakRecoverSpeed": null,
+              "slowDown": null
+            }
+          }
+        ],
+        "native_skills": [
+          {
+            "key": "skcom_heal_up[1]",
+            "name": "治疗强化·α型",
+            "handler": "healing_skill_v1",
+            "blackboard": {
+              "atk": 0.1
+            },
+            "spType": 1,
+            "spCost": 40,
+            "initSp": 0,
+            "increment": 1.0,
+            "automatic": false,
+            "duration": 20.0
+          },
+          {
+            "key": "skcom_heal_up[1]",
+            "name": "治疗强化·α型",
+            "handler": "healing_skill_v1",
+            "blackboard": {
+              "atk": 0.15
+            },
+            "spType": 1,
+            "spCost": 40,
+            "initSp": 0,
+            "increment": 1.0,
+            "automatic": false,
+            "duration": 20.0
+          },
+          {
+            "key": "skcom_heal_up[1]",
+            "name": "治疗强化·α型",
+            "handler": "healing_skill_v1",
+            "blackboard": {
+              "atk": 0.2
+            },
+            "spType": 1,
+            "spCost": 40,
+            "initSp": 0,
+            "increment": 1.0,
+            "automatic": false,
+            "duration": 20.0
+          },
+          {
+            "key": "skcom_heal_up[1]",
+            "name": "治疗强化·α型",
+            "handler": "healing_skill_v1",
+            "blackboard": {
+              "atk": 0.3
+            },
+            "spType": 1,
+            "spCost": 35,
+            "initSp": 0,
+            "increment": 1.0,
+            "automatic": false,
+            "duration": 20.0
+          },
+          {
+            "key": "skcom_heal_up[1]",
+            "name": "治疗强化·α型",
+            "handler": "healing_skill_v1",
+            "blackboard": {
+              "atk": 0.35
+            },
+            "spType": 1,
+            "spCost": 35,
+            "initSp": 0,
+            "increment": 1.0,
+            "automatic": false,
+            "duration": 20.0
+          },
+          {
+            "key": "skcom_heal_up[1]",
+            "name": "治疗强化·α型",
+            "handler": "healing_skill_v1",
+            "blackboard": {
+              "atk": 0.4
+            },
+            "spType": 1,
+            "spCost": 35,
+            "initSp": 0,
+            "increment": 1.0,
+            "automatic": false,
+            "duration": 20.0
+          },
+          {
+            "key": "skcom_heal_up[1]",
+            "name": "治疗强化·α型",
+            "handler": "healing_skill_v1",
+            "blackboard": {
+              "atk": 0.5
+            },
+            "spType": 1,
+            "spCost": 30,
+            "initSp": 0,
+            "increment": 1.0,
+            "automatic": false,
+            "duration": 20.0
+          }
+        ]
+      }
+    }
+  ],
+  "abilities": [
+    {
+      "id": "ability/enemy_1007_slime_attack",
+      "kind": "ability",
+      "activation": {
+        "mode": "automatic_attack",
+        "interval_rule": "rule/ark_attack_interval",
+        "parameters": {
+          "windup_ratio": 0.5
+        }
+      },
+      "selector": "selector/enemy_1007_slime_attack",
+      "timeline": [
+        {
+          "at_seconds": 0.85,
+          "effect": {
+            "op": "damage",
+            "target": "selected",
+            "scale": 1,
+            "damage_type": "physical",
+            "read_mode": {
+              "source_attributes": "at_hit",
+              "target_attributes": "at_hit"
+            }
+          }
+        }
+      ],
+      "parameters": {
+        "windup_seconds": 0.85,
+        "healing": false,
+        "projectile_speed": 0,
+        "projectile_key": ""
+      },
+      "metadata": {
+        "native": {
+          "key": "enemy_1007_slime:attack",
+          "damage_type": 0,
+          "hit_ratio": 0.5
+        },
+        "verification": "model_unverified"
+      }
+    },
+    {
+      "id": "ability/enemy_1002_nsabr_attack",
+      "kind": "ability",
+      "activation": {
+        "mode": "automatic_attack",
+        "interval_rule": "rule/ark_attack_interval",
+        "parameters": {
+          "windup_ratio": 0.5
+        }
+      },
+      "selector": "selector/enemy_1002_nsabr_attack",
+      "timeline": [
+        {
+          "at_seconds": 1.0,
+          "effect": {
+            "op": "damage",
+            "target": "selected",
+            "scale": 1,
+            "damage_type": "physical",
+            "read_mode": {
+              "source_attributes": "at_hit",
+              "target_attributes": "at_hit"
+            }
+          }
+        }
+      ],
+      "parameters": {
+        "windup_seconds": 1.0,
+        "healing": false,
+        "projectile_speed": 0,
+        "projectile_key": ""
+      },
+      "metadata": {
+        "native": {
+          "key": "enemy_1002_nsabr:attack",
+          "damage_type": 0,
+          "hit_ratio": 0.5
+        },
+        "verification": "model_unverified"
+      }
+    },
+    {
+      "id": "ability/char_502_nblade_attack",
+      "kind": "ability",
+      "activation": {
+        "mode": "automatic_attack",
+        "interval_rule": "rule/ark_attack_interval",
+        "parameters": {
+          "windup_ratio": 0.2667
+        }
+      },
+      "selector": "selector/char_502_nblade_attack",
+      "timeline": [
+        {
+          "at_seconds": 0.280035,
+          "effect": {
+            "op": "damage",
+            "target": "selected",
+            "scale": 1,
+            "damage_type": "physical",
+            "read_mode": {
+              "source_attributes": "at_hit",
+              "target_attributes": "at_hit"
+            }
+          }
+        }
+      ],
+      "parameters": {
+        "windup_seconds": 0.280035,
+        "healing": false,
+        "projectile_speed": 0.0,
+        "projectile_key": ""
+      },
+      "metadata": {
+        "native": {
+          "key": "char_502_nblade:attack",
+          "damage_type": 0,
+          "hit_ratio": 0.2667,
+          "healing": false,
+          "projectile_speed": 0.0,
+          "projectile_key": ""
+        },
+        "verification": "model_unverified"
+      }
+    },
+    {
+      "id": "ability/char_124_kroos_attack",
+      "kind": "ability",
+      "activation": {
+        "mode": "automatic_attack",
+        "interval_rule": "rule/ark_attack_interval",
+        "parameters": {
+          "windup_ratio": 0.4642665809493196,
+          "sp_resource": "sp",
+          "recovery_per_attack": 1
+        }
+      },
+      "selector": "selector/char_124_kroos_attack",
+      "timeline": [
+        {
+          "at_seconds": 0.4642665809493196,
+          "effect": {
+            "op": "damage",
+            "target": "selected",
+            "scale": 1,
+            "damage_type": "physical",
+            "read_mode": {
+              "source_attributes": "at_hit",
+              "target_attributes": "at_hit"
+            }
+          }
+        }
+      ],
+      "parameters": {
+        "windup_seconds": 0.4642665809493196,
+        "healing": false,
+        "projectile_speed": 10.0,
+        "projectile_key": "projectile_arrow"
+      },
+      "metadata": {
+        "native": {
+          "key": "char_124_kroos:attack",
+          "damage_type": 0,
+          "hit_ratio": 0.4642665809493196,
+          "healing": false,
+          "projectile_speed": 10.0,
+          "projectile_key": "projectile_arrow"
+        },
+        "verification": "model_unverified"
+      }
+    },
+    {
+      "id": "ability/char_124_kroos_skill_1",
+      "kind": "ability",
+      "activation": {
+        "mode": "manual",
+        "costs": [
+          {
+            "resource": "sp",
+            "amount": 5
+          }
+        ],
+        "parameters": {
+          "automatic": true,
+          "auto_when_ready": true,
+          "sp_resource": "sp",
+          "replace_attack": true
+        }
+      },
+      "selector": "selector/char_124_kroos_attack",
+      "timeline": [
+        {
+          "at_seconds": 0.4642665809493196,
+          "repeat": {
+            "count": 2,
+            "interval_seconds": 0
+          },
+          "effect": {
+            "op": "damage",
+            "target": "selected",
+            "damage_type": "physical",
+            "scale": 1.0
+          }
+        }
+      ],
+      "duration_seconds": 0,
+      "parameters": {
+        "windup_seconds": 0.4642665809493196,
+        "projectile_speed": 10.0,
+        "automatic": true,
+        "replace_attack": true
+      },
+      "metadata": {
+        "native": {
+          "key": "skchr_kroos_1",
+          "name": "二连射·自动",
+          "handler": "attack_burst_v1",
+          "blackboard": {
+            "atk_scale": 1.0,
+            "times": 2.0
+          },
+          "spType": 2,
+          "spCost": 5,
+          "initSp": 0,
+          "increment": 1.0,
+          "automatic": true,
+          "duration": 0
+        },
+        "verification": "model_unverified"
+      }
+    },
+    {
+      "id": "ability/char_123_fang_attack",
+      "kind": "ability",
+      "activation": {
+        "mode": "automatic_attack",
+        "interval_rule": "rule/ark_attack_interval",
+        "parameters": {
+          "windup_ratio": 0.4333
+        }
+      },
+      "selector": "selector/char_123_fang_attack",
+      "timeline": [
+        {
+          "at_seconds": 0.45496500000000006,
+          "effect": {
+            "op": "damage",
+            "target": "selected",
+            "scale": 1,
+            "damage_type": "physical",
+            "read_mode": {
+              "source_attributes": "at_hit",
+              "target_attributes": "at_hit"
+            }
+          }
+        }
+      ],
+      "parameters": {
+        "windup_seconds": 0.45496500000000006,
+        "healing": false,
+        "projectile_speed": 0.0,
+        "projectile_key": ""
+      },
+      "metadata": {
+        "native": {
+          "key": "char_123_fang:attack",
+          "damage_type": 0,
+          "hit_ratio": 0.4333,
+          "healing": false,
+          "projectile_speed": 0.0,
+          "projectile_key": ""
+        },
+        "verification": "model_unverified"
+      }
+    },
+    {
+      "id": "ability/char_123_fang_skill_1",
+      "kind": "ability",
+      "activation": {
+        "mode": "manual",
+        "costs": [
+          {
+            "resource": "sp",
+            "amount": 30
+          }
+        ],
+        "parameters": {
+          "automatic": true,
+          "auto_when_ready": true,
+          "sp_resource": "sp",
+          "replace_attack": false
+        }
+      },
+      "selector": "selector/char_123_fang_attack",
+      "timeline": [
+        {
+          "at_seconds": 0,
+          "effect": {
+            "op": "modify_resource",
+            "target": "scenario",
+            "resource": "dp",
+            "delta": 6.0
+          }
+        }
+      ],
+      "duration_seconds": 0,
+      "parameters": {
+        "automatic": true
+      },
+      "metadata": {
+        "native": {
+          "key": "skcom_charge_cost[1]",
+          "name": "冲锋号令·α型",
+          "handler": "cost_skill_v1",
+          "blackboard": {
+            "cost": 6.0
+          },
+          "spType": 1,
+          "spCost": 30,
+          "initSp": 0,
+          "increment": 1.0,
+          "automatic": true,
+          "duration": 0
+        },
+        "verification": "model_unverified"
+      }
+    },
+    {
+      "id": "ability/char_120_hibisc_attack",
+      "kind": "ability",
+      "activation": {
+        "mode": "automatic_attack",
+        "interval_rule": "rule/ark_attack_interval",
+        "parameters": {
+          "windup_ratio": 0.4667
+        }
+      },
+      "selector": "selector/char_120_hibisc_attack",
+      "timeline": [
+        {
+          "at_seconds": 1.330095,
+          "effect": {
+            "op": "heal",
+            "target": "selected",
+            "scale": 1,
+            "read_mode": {
+              "source_attributes": "at_hit",
+              "target_attributes": "at_hit"
+            }
+          }
+        }
+      ],
+      "parameters": {
+        "windup_seconds": 1.330095,
+        "healing": true,
+        "projectile_speed": 0.0,
+        "projectile_key": ""
+      },
+      "metadata": {
+        "native": {
+          "key": "char_120_hibisc:attack",
+          "damage_type": 0,
+          "hit_ratio": 0.4667,
+          "healing": true,
+          "projectile_speed": 0.0,
+          "projectile_key": ""
+        },
+        "verification": "model_unverified"
+      }
+    },
+    {
+      "id": "ability/char_120_hibisc_skill_1",
+      "kind": "ability",
+      "activation": {
+        "mode": "manual",
+        "costs": [
+          {
+            "resource": "sp",
+            "amount": 40
+          }
+        ],
+        "parameters": {
+          "automatic": false,
+          "auto_when_ready": false,
+          "sp_resource": "sp",
+          "replace_attack": false
+        }
+      },
+      "selector": "selector/char_120_hibisc_attack",
+      "timeline": [
+        {
+          "at_seconds": 0,
+          "effect": {
+            "op": "apply_buff",
+            "target": "self",
+            "buff": "buff/char_120_hibisc_skill_1"
+          }
+        }
+      ],
+      "duration_seconds": 20.0,
+      "parameters": {
+        "automatic": false,
+        "blocks_attacks": false
+      },
+      "metadata": {
+        "native": {
+          "key": "skcom_heal_up[1]",
+          "name": "治疗强化·α型",
+          "handler": "healing_skill_v1",
+          "blackboard": {
+            "atk": 0.1
+          },
+          "spType": 1,
+          "spCost": 40,
+          "initSp": 0,
+          "increment": 1.0,
+          "automatic": false,
+          "duration": 20.0
+        },
+        "verification": "model_unverified"
+      }
+    }
+  ],
+  "selectors": [
+    {
+      "id": "selector/enemy_1007_slime_attack",
+      "kind": "selector",
+      "provider": "ark.selector.grid",
+      "region": {
+        "type": "all",
+        "blocked_only": true
+      },
+      "filters": [
+        {
+          "tag": "operator"
+        },
+        {
+          "state": "alive"
+        }
+      ],
+      "ordering": "nearest_then_entity_id",
+      "limit": 1,
+      "parameters": {
+        "include_blocked": false
+      }
+    },
+    {
+      "id": "selector/enemy_1002_nsabr_attack",
+      "kind": "selector",
+      "provider": "ark.selector.grid",
+      "region": {
+        "type": "all",
+        "blocked_only": true
+      },
+      "filters": [
+        {
+          "tag": "operator"
+        },
+        {
+          "state": "alive"
+        }
+      ],
+      "ordering": "nearest_then_entity_id",
+      "limit": 1,
+      "parameters": {
+        "include_blocked": false
+      }
+    },
+    {
+      "id": "selector/char_502_nblade_attack",
+      "kind": "selector",
+      "provider": "ark.selector.grid",
+      "region": {
+        "type": "grid_offsets",
+        "offsets": [
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            1
+          ]
+        ],
+        "rotate_with_facing": true
+      },
+      "filters": [
+        {
+          "tag": "enemy"
+        },
+        {
+          "state": "alive"
+        }
+      ],
+      "ordering": "nearest_then_entity_id",
+      "limit": 1,
+      "parameters": {
+        "include_blocked": true
+      }
+    },
+    {
+      "id": "selector/char_124_kroos_attack",
+      "kind": "selector",
+      "provider": "ark.selector.grid",
+      "region": {
+        "type": "grid_offsets",
+        "offsets": [
+          [
+            1,
+            0
+          ],
+          [
+            1,
+            1
+          ],
+          [
+            1,
+            2
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            1
+          ],
+          [
+            0,
+            2
+          ],
+          [
+            0,
+            3
+          ],
+          [
+            -1,
+            0
+          ],
+          [
+            -1,
+            1
+          ],
+          [
+            -1,
+            2
+          ]
+        ],
+        "rotate_with_facing": true
+      },
+      "filters": [
+        {
+          "tag": "enemy"
+        },
+        {
+          "state": "alive"
+        }
+      ],
+      "ordering": "nearest_then_entity_id",
+      "limit": 1,
+      "parameters": {
+        "include_blocked": false
+      }
+    },
+    {
+      "id": "selector/char_123_fang_attack",
+      "kind": "selector",
+      "provider": "ark.selector.grid",
+      "region": {
+        "type": "grid_offsets",
+        "offsets": [
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            1
+          ]
+        ],
+        "rotate_with_facing": true
+      },
+      "filters": [
+        {
+          "tag": "enemy"
+        },
+        {
+          "state": "alive"
+        }
+      ],
+      "ordering": "nearest_then_entity_id",
+      "limit": 1,
+      "parameters": {
+        "include_blocked": true
+      }
+    },
+    {
+      "id": "selector/char_120_hibisc_attack",
+      "kind": "selector",
+      "provider": "ark.selector.grid",
+      "region": {
+        "type": "grid_offsets",
+        "offsets": [
+          [
+            1,
+            0
+          ],
+          [
+            1,
+            1
+          ],
+          [
+            1,
+            2
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            1
+          ],
+          [
+            0,
+            2
+          ],
+          [
+            0,
+            3
+          ],
+          [
+            -1,
+            0
+          ],
+          [
+            -1,
+            1
+          ],
+          [
+            -1,
+            2
+          ]
+        ],
+        "rotate_with_facing": true
+      },
+      "filters": [
+        {
+          "tag": "operator"
+        },
+        {
+          "state": "alive"
+        }
+      ],
+      "ordering": "lowest_health_ratio",
+      "limit": 1,
+      "parameters": {
+        "include_blocked": false
+      }
+    }
+  ],
+  "buffs": [
+    {
+      "id": "buff/char_120_hibisc_skill_1",
+      "kind": "buff",
+      "duration_seconds": 20.0,
+      "stacking": {
+        "mode": "refresh"
+      },
+      "modifiers": [
+        {
+          "attribute": "atk",
+          "layer": "direct_ratio",
+          "value": 0.1
+        }
+      ]
+    }
+  ],
+  "rules": [
+    {
+      "id": "rule/ark_import_resource_recovery",
+      "kind": "calculation_rule",
+      "contract": "resource.recovery",
+      "implementation": {
+        "type": "expression",
+        "expression": "inputs.current + inputs.parameters.rate * inputs.delta_seconds"
+      }
+    },
+    {
+      "id": "rule/ark_00_01_movement_speed",
+      "kind": "calculation_rule",
+      "contract": "movement.speed",
+      "implementation": {
+        "type": "expression",
+        "expression": "inputs.movement_parameters.base_speed * params.multiplier"
+      },
+      "parameters": {
+        "multiplier": 0.5
+      }
+    }
+  ],
+  "rulesets": [
+    {
+      "id": "ruleset/ark_00_01",
+      "kind": "ruleset",
+      "extends": "ruleset/ark_standard",
+      "bindings": {
+        "movement.speed": "rule/ark_00_01_movement_speed"
+      },
+      "parameters": {
+        "deploy_capacity": 8
+      }
+    }
+  ],
+  "scenarioDraft": {
+    "id": "scenario/ark_00_01",
+    "kind": "scenario",
+    "ruleset": "ruleset/ark_00_01",
+    "description": "0-1 E0 fixed configurations; native frame calibration pending",
+    "map": {
+      "rows": 6,
+      "cols": 9,
+      "tiles": [
+        {
+          "tileKey": "tile_forbidden",
+          "heightType": 1,
+          "buildableType": null,
+          "passableMask": 2
+        },
+        {
+          "tileKey": "tile_forbidden",
+          "heightType": 1,
+          "buildableType": null,
+          "passableMask": 2
+        },
+        {
+          "tileKey": "tile_forbidden",
+          "heightType": 1,
+          "buildableType": null,
+          "passableMask": 2
+        },
+        {
+          "tileKey": "tile_forbidden",
+          "heightType": 1,
+          "buildableType": null,
+          "passableMask": 2
+        },
+        {
+          "tileKey": "tile_forbidden",
+          "heightType": 1,
+          "buildableType": null,
+          "passableMask": 2
+        },
+        {
+          "tileKey": "tile_forbidden",
+          "heightType": 1,
+          "buildableType": null,
+          "passableMask": 2
+        },
+        {
+          "tileKey": "tile_forbidden",
+          "heightType": 1,
+          "buildableType": null,
+          "passableMask": 2
+        },
+        {
+          "tileKey": "tile_forbidden",
+          "heightType": 1,
+          "buildableType": null,
+          "passableMask": 2
+        },
+        {
+          "tileKey": "tile_forbidden",
+          "heightType": 1,
+          "buildableType": null,
+          "passableMask": 2
+        },
+        {
+          "tileKey": "tile_forbidden",
+          "heightType": 1,
+          "buildableType": null,
+          "passableMask": 2
+        },
+        {
+          "tileKey": "tile_wall",
+          "heightType": 1,
+          "buildableType": 2,
+          "passableMask": 2
+        },
+        {
+          "tileKey": "tile_wall",
+          "heightType": 1,
+          "buildableType": 2,
+          "passableMask": 2
+        },
+        {
+          "tileKey": "tile_wall",
+          "heightType": 1,
+          "buildableType": 2,
+          "passableMask": 2
+        },
+        {
+          "tileKey": "tile_wall",
+          "heightType": 1,
+          "buildableType": 2,
+          "passableMask": 2
+        },
+        {
+          "tileKey": "tile_wall",
+          "heightType": 1,
+          "buildableType": 2,
+          "passableMask": 2
+        },
+        {
+          "tileKey": "tile_wall",
+          "heightType": 1,
+          "buildableType": 2,
+          "passableMask": 2
+        },
+        {
+          "tileKey": "tile_wall",
+          "heightType": 1,
+          "buildableType": 2,
+          "passableMask": 2
+        },
+        {
+          "tileKey": "tile_forbidden",
+          "heightType": 1,
+          "buildableType": null,
+          "passableMask": 2
+        },
+        {
+          "tileKey": "tile_end",
+          "heightType": null,
+          "buildableType": null,
+          "passableMask": 3
+        },
+        {
+          "tileKey": "tile_road",
+          "heightType": null,
+          "buildableType": 1,
+          "passableMask": 3
+        },
+        {
+          "tileKey": "tile_wall",
+          "heightType": 1,
+          "buildableType": 2,
+          "passableMask": 2
+        },
+        {
+          "tileKey": "tile_road",
+          "heightType": null,
+          "buildableType": 1,
+          "passableMask": 3
+        },
+        {
+          "tileKey": "tile_road",
+          "heightType": null,
+          "buildableType": 1,
+          "passableMask": 3
+        },
+        {
+          "tileKey": "tile_road",
+          "heightType": null,
+          "buildableType": 1,
+          "passableMask": 3
+        },
+        {
+          "tileKey": "tile_road",
+          "heightType": null,
+          "buildableType": 1,
+          "passableMask": 3
+        },
+        {
+          "tileKey": "tile_road",
+          "heightType": null,
+          "buildableType": 1,
+          "passableMask": 3
+        },
+        {
+          "tileKey": "tile_forbidden",
+          "heightType": 1,
+          "buildableType": null,
+          "passableMask": 2
+        },
+        {
+          "tileKey": "tile_forbidden",
+          "heightType": 1,
+          "buildableType": null,
+          "passableMask": 2
+        },
+        {
+          "tileKey": "tile_road",
+          "heightType": null,
+          "buildableType": 1,
+          "passableMask": 3
+        },
+        {
+          "tileKey": "tile_road",
+          "heightType": null,
+          "buildableType": 1,
+          "passableMask": 3
+        },
+        {
+          "tileKey": "tile_road",
+          "heightType": null,
+          "buildableType": 1,
+          "passableMask": 3
+        },
+        {
+          "tileKey": "tile_wall",
+          "heightType": 1,
+          "buildableType": 2,
+          "passableMask": 2
+        },
+        {
+          "tileKey": "tile_road",
+          "heightType": null,
+          "buildableType": 1,
+          "passableMask": 3
+        },
+        {
+          "tileKey": "tile_road",
+          "heightType": null,
+          "buildableType": 1,
+          "passableMask": 3
+        },
+        {
+          "tileKey": "tile_road",
+          "heightType": null,
+          "buildableType": 1,
+          "passableMask": 3
+        },
+        {
+          "tileKey": "tile_start",
+          "heightType": null,
+          "buildableType": null,
+          "passableMask": 3
+        },
+        {
+          "tileKey": "tile_forbidden",
+          "heightType": 1,
+          "buildableType": null,
+          "passableMask": 2
+        },
+        {
+          "tileKey": "tile_wall",
+          "heightType": 1,
+          "buildableType": 2,
+          "passableMask": 2
+        },
+        {
+          "tileKey": "tile_wall",
+          "heightType": 1,
+          "buildableType": 2,
+          "passableMask": 2
+        },
+        {
+          "tileKey": "tile_wall",
+          "heightType": 1,
+          "buildableType": 2,
+          "passableMask": 2
+        },
+        {
+          "tileKey": "tile_wall",
+          "heightType": 1,
+          "buildableType": 2,
+          "passableMask": 2
+        },
+        {
+          "tileKey": "tile_wall",
+          "heightType": 1,
+          "buildableType": 2,
+          "passableMask": 2
+        },
+        {
+          "tileKey": "tile_wall",
+          "heightType": 1,
+          "buildableType": 2,
+          "passableMask": 2
+        },
+        {
+          "tileKey": "tile_wall",
+          "heightType": 1,
+          "buildableType": 2,
+          "passableMask": 2
+        },
+        {
+          "tileKey": "tile_forbidden",
+          "heightType": 1,
+          "buildableType": null,
+          "passableMask": 2
+        },
+        {
+          "tileKey": "tile_forbidden",
+          "heightType": 1,
+          "buildableType": null,
+          "passableMask": 2
+        },
+        {
+          "tileKey": "tile_forbidden",
+          "heightType": 1,
+          "buildableType": null,
+          "passableMask": 2
+        },
+        {
+          "tileKey": "tile_forbidden",
+          "heightType": 1,
+          "buildableType": null,
+          "passableMask": 2
+        },
+        {
+          "tileKey": "tile_forbidden",
+          "heightType": 1,
+          "buildableType": null,
+          "passableMask": 2
+        },
+        {
+          "tileKey": "tile_forbidden",
+          "heightType": 1,
+          "buildableType": null,
+          "passableMask": 2
+        },
+        {
+          "tileKey": "tile_forbidden",
+          "heightType": 1,
+          "buildableType": null,
+          "passableMask": 2
+        },
+        {
+          "tileKey": "tile_forbidden",
+          "heightType": 1,
+          "buildableType": null,
+          "passableMask": 2
+        },
+        {
+          "tileKey": "tile_forbidden",
+          "heightType": 1,
+          "buildableType": null,
+          "passableMask": 2
+        },
+        {
+          "tileKey": "tile_forbidden",
+          "heightType": 1,
+          "buildableType": null,
+          "passableMask": 2
+        }
+      ]
+    },
+    "routes": [
+      {
+        "motionMode": {
+          "value": 2,
+          "name": "E_NUM"
+        },
+        "startPosition": {
+          "row": 5,
+          "col": 0
+        },
+        "endPosition": {
+          "row": 5,
+          "col": 0
+        },
+        "spawnRandomRange": {
+          "x": 0.0,
+          "y": 0.0
+        },
+        "spawnOffset": {
+          "x": 0.0,
+          "y": 0.0
+        },
+        "allowDiagonalMove": true,
+        "visitEveryTileCenter": false,
+        "visitEveryNodeCenter": false,
+        "visitEveryCheckPoint": false,
+        "checkpoints": []
+      },
+      {
+        "motionMode": {
+          "value": 2,
+          "name": "E_NUM"
+        },
+        "startPosition": {
+          "row": 5,
+          "col": 0
+        },
+        "endPosition": {
+          "row": 5,
+          "col": 0
+        },
+        "spawnRandomRange": {
+          "x": 0.0,
+          "y": 0.0
+        },
+        "spawnOffset": {
+          "x": 0.0,
+          "y": 0.0
+        },
+        "allowDiagonalMove": true,
+        "visitEveryTileCenter": false,
+        "visitEveryNodeCenter": false,
+        "visitEveryCheckPoint": false,
+        "checkpoints": []
+      },
+      {
+        "motionMode": null,
+        "startPosition": {
+          "row": 3,
+          "col": 8
+        },
+        "endPosition": {
+          "row": 2,
+          "col": 0
+        },
+        "spawnRandomRange": {
+          "x": 0.0,
+          "y": 0.0
+        },
+        "spawnOffset": {
+          "x": 0.0,
+          "y": 0.0
+        },
+        "checkpoints": [
+          {
+            "type": null,
+            "time": null,
+            "position": {
+              "row": 2,
+              "col": 3
+            },
+            "reachOffset": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "randomizeReachOffset": null,
+            "reachDistance": null
+          },
+          {
+            "type": null,
+            "time": null,
+            "position": {
+              "row": 3,
+              "col": 3
+            },
+            "reachOffset": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "randomizeReachOffset": null,
+            "reachDistance": null
+          },
+          {
+            "type": null,
+            "time": null,
+            "position": {
+              "row": 3,
+              "col": 1
+            },
+            "reachOffset": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "randomizeReachOffset": null,
+            "reachDistance": null
+          },
+          {
+            "type": null,
+            "time": null,
+            "position": {
+              "row": 2,
+              "col": 1
+            },
+            "reachOffset": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "randomizeReachOffset": null,
+            "reachDistance": null
+          }
+        ],
+        "checkpointCount": 4,
+        "allowDiagonalMove": true,
+        "visitEveryTileCenter": false,
+        "visitEveryNodeCenter": false,
+        "visitEveryCheckPoint": false
+      },
+      {
+        "motionMode": null,
+        "startPosition": {
+          "row": 3,
+          "col": 8
+        },
+        "endPosition": {
+          "row": 2,
+          "col": 0
+        },
+        "spawnRandomRange": {
+          "x": 0.3,
+          "y": 0.3
+        },
+        "spawnOffset": {
+          "x": 0.0,
+          "y": 0.0
+        },
+        "checkpoints": [
+          {
+            "type": null,
+            "time": null,
+            "position": {
+              "row": 2,
+              "col": 3
+            },
+            "reachOffset": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "randomizeReachOffset": null,
+            "reachDistance": null
+          },
+          {
+            "type": null,
+            "time": null,
+            "position": {
+              "row": 3,
+              "col": 3
+            },
+            "reachOffset": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "randomizeReachOffset": null,
+            "reachDistance": null
+          },
+          {
+            "type": null,
+            "time": null,
+            "position": {
+              "row": 3,
+              "col": 1
+            },
+            "reachOffset": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "randomizeReachOffset": null,
+            "reachDistance": null
+          },
+          {
+            "type": null,
+            "time": null,
+            "position": {
+              "row": 2,
+              "col": 1
+            },
+            "reachOffset": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "randomizeReachOffset": null,
+            "reachDistance": null
+          }
+        ],
+        "checkpointCount": 4,
+        "allowDiagonalMove": true,
+        "visitEveryTileCenter": false,
+        "visitEveryNodeCenter": false,
+        "visitEveryCheckPoint": false
+      },
+      {
+        "motionMode": null,
+        "startPosition": {
+          "row": 3,
+          "col": 8
+        },
+        "endPosition": {
+          "row": 2,
+          "col": 0
+        },
+        "spawnRandomRange": {
+          "x": 0.3,
+          "y": 0.3
+        },
+        "spawnOffset": {
+          "x": 0.0,
+          "y": 0.0
+        },
+        "checkpoints": [
+          {
+            "type": null,
+            "time": null,
+            "position": {
+              "row": 2,
+              "col": 3
+            },
+            "reachOffset": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "randomizeReachOffset": null,
+            "reachDistance": null
+          },
+          {
+            "type": null,
+            "time": null,
+            "position": {
+              "row": 3,
+              "col": 3
+            },
+            "reachOffset": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "randomizeReachOffset": null,
+            "reachDistance": null
+          },
+          {
+            "type": null,
+            "time": null,
+            "position": {
+              "row": 3,
+              "col": 1
+            },
+            "reachOffset": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "randomizeReachOffset": null,
+            "reachDistance": null
+          },
+          {
+            "type": null,
+            "time": null,
+            "position": {
+              "row": 2,
+              "col": 1
+            },
+            "reachOffset": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "randomizeReachOffset": null,
+            "reachDistance": null
+          }
+        ],
+        "checkpointCount": 4,
+        "allowDiagonalMove": true,
+        "visitEveryTileCenter": false,
+        "visitEveryNodeCenter": false,
+        "visitEveryCheckPoint": false
+      },
+      {
+        "motionMode": null,
+        "startPosition": {
+          "row": 3,
+          "col": 8
+        },
+        "endPosition": {
+          "row": 2,
+          "col": 0
+        },
+        "spawnRandomRange": {
+          "x": 0.3,
+          "y": 0.3
+        },
+        "spawnOffset": {
+          "x": 0.0,
+          "y": 0.0
+        },
+        "checkpoints": [
+          {
+            "type": null,
+            "time": null,
+            "position": {
+              "row": 2,
+              "col": 3
+            },
+            "reachOffset": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "randomizeReachOffset": null,
+            "reachDistance": null
+          },
+          {
+            "type": null,
+            "time": null,
+            "position": {
+              "row": 3,
+              "col": 3
+            },
+            "reachOffset": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "randomizeReachOffset": null,
+            "reachDistance": null
+          },
+          {
+            "type": null,
+            "time": null,
+            "position": {
+              "row": 3,
+              "col": 1
+            },
+            "reachOffset": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "randomizeReachOffset": null,
+            "reachDistance": null
+          },
+          {
+            "type": null,
+            "time": null,
+            "position": {
+              "row": 2,
+              "col": 1
+            },
+            "reachOffset": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "randomizeReachOffset": null,
+            "reachDistance": null
+          }
+        ],
+        "checkpointCount": 4,
+        "allowDiagonalMove": true,
+        "visitEveryTileCenter": false,
+        "visitEveryNodeCenter": false,
+        "visitEveryCheckPoint": false
+      },
+      {
+        "motionMode": null,
+        "startPosition": {
+          "row": 3,
+          "col": 8
+        },
+        "endPosition": {
+          "row": 2,
+          "col": 0
+        },
+        "spawnRandomRange": {
+          "x": 0.3,
+          "y": 0.3
+        },
+        "spawnOffset": {
+          "x": 0.0,
+          "y": 0.0
+        },
+        "checkpoints": [
+          {
+            "type": null,
+            "time": null,
+            "position": {
+              "row": 2,
+              "col": 3
+            },
+            "reachOffset": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "randomizeReachOffset": null,
+            "reachDistance": null
+          },
+          {
+            "type": null,
+            "time": null,
+            "position": {
+              "row": 3,
+              "col": 3
+            },
+            "reachOffset": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "randomizeReachOffset": null,
+            "reachDistance": null
+          },
+          {
+            "type": null,
+            "time": null,
+            "position": {
+              "row": 3,
+              "col": 1
+            },
+            "reachOffset": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "randomizeReachOffset": null,
+            "reachDistance": null
+          },
+          {
+            "type": null,
+            "time": null,
+            "position": {
+              "row": 2,
+              "col": 1
+            },
+            "reachOffset": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "randomizeReachOffset": null,
+            "reachDistance": null
+          }
+        ],
+        "checkpointCount": 4,
+        "allowDiagonalMove": true,
+        "visitEveryTileCenter": false,
+        "visitEveryNodeCenter": false,
+        "visitEveryCheckPoint": false
+      },
+      {
+        "motionMode": null,
+        "startPosition": {
+          "row": 3,
+          "col": 8
+        },
+        "endPosition": {
+          "row": 2,
+          "col": 0
+        },
+        "spawnRandomRange": {
+          "x": 0.3,
+          "y": 0.3
+        },
+        "spawnOffset": {
+          "x": 0.0,
+          "y": 0.0
+        },
+        "checkpoints": [
+          {
+            "type": null,
+            "time": null,
+            "position": {
+              "row": 2,
+              "col": 3
+            },
+            "reachOffset": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "randomizeReachOffset": null,
+            "reachDistance": null
+          },
+          {
+            "type": null,
+            "time": null,
+            "position": {
+              "row": 3,
+              "col": 3
+            },
+            "reachOffset": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "randomizeReachOffset": null,
+            "reachDistance": null
+          },
+          {
+            "type": null,
+            "time": null,
+            "position": {
+              "row": 3,
+              "col": 1
+            },
+            "reachOffset": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "randomizeReachOffset": null,
+            "reachDistance": null
+          },
+          {
+            "type": null,
+            "time": null,
+            "position": {
+              "row": 2,
+              "col": 1
+            },
+            "reachOffset": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "randomizeReachOffset": null,
+            "reachDistance": null
+          }
+        ],
+        "checkpointCount": 4,
+        "allowDiagonalMove": true,
+        "visitEveryTileCenter": false,
+        "visitEveryNodeCenter": false,
+        "visitEveryCheckPoint": false
+      },
+      {
+        "motionMode": {
+          "value": 2,
+          "name": "E_NUM"
+        },
+        "startPosition": {
+          "row": 5,
+          "col": 0
+        },
+        "endPosition": {
+          "row": 5,
+          "col": 0
+        },
+        "spawnRandomRange": {
+          "x": 0.0,
+          "y": 0.0
+        },
+        "spawnOffset": {
+          "x": 0.0,
+          "y": 0.0
+        },
+        "allowDiagonalMove": true,
+        "visitEveryTileCenter": false,
+        "visitEveryNodeCenter": false,
+        "visitEveryCheckPoint": false,
+        "checkpoints": []
+      },
+      {
+        "motionMode": null,
+        "startPosition": {
+          "row": 3,
+          "col": 8
+        },
+        "endPosition": {
+          "row": 2,
+          "col": 0
+        },
+        "spawnRandomRange": {
+          "x": 0.0,
+          "y": 0.0
+        },
+        "spawnOffset": {
+          "x": 0.0,
+          "y": 0.0
+        },
+        "checkpoints": [
+          {
+            "type": null,
+            "time": null,
+            "position": {
+              "row": 3,
+              "col": 7
+            },
+            "reachOffset": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "randomizeReachOffset": null,
+            "reachDistance": null
+          },
+          {
+            "type": {
+              "value": 1,
+              "name": "WAIT_FOR_SECONDS"
+            },
+            "time": 3.0,
+            "position": {
+              "row": 5,
+              "col": 0
+            },
+            "reachOffset": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "randomizeReachOffset": null,
+            "reachDistance": null
+          },
+          {
+            "type": null,
+            "time": null,
+            "position": {
+              "row": 2,
+              "col": 3
+            },
+            "reachOffset": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "randomizeReachOffset": null,
+            "reachDistance": null
+          },
+          {
+            "type": null,
+            "time": null,
+            "position": {
+              "row": 3,
+              "col": 3
+            },
+            "reachOffset": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "randomizeReachOffset": null,
+            "reachDistance": null
+          },
+          {
+            "type": null,
+            "time": null,
+            "position": {
+              "row": 3,
+              "col": 1
+            },
+            "reachOffset": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "randomizeReachOffset": null,
+            "reachDistance": null
+          },
+          {
+            "type": null,
+            "time": null,
+            "position": {
+              "row": 2,
+              "col": 1
+            },
+            "reachOffset": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "randomizeReachOffset": null,
+            "reachDistance": null
+          }
+        ],
+        "checkpointCount": 6,
+        "allowDiagonalMove": true,
+        "visitEveryTileCenter": false,
+        "visitEveryNodeCenter": false,
+        "visitEveryCheckPoint": false
+      }
+    ],
+    "initialEntities": [],
+    "roster": [
+      "unit/char_502_nblade",
+      "unit/char_124_kroos",
+      "unit/char_123_fang",
+      "unit/char_120_hibisc"
+    ],
+    "dependencies": [
+      "unit/char_502_nblade",
+      "unit/char_124_kroos",
+      "unit/char_123_fang",
+      "unit/char_120_hibisc"
+    ],
+    "waves": [
+      {
+        "at_seconds": 5.0,
+        "definition": "unit/enemy_1007_slime",
+        "position": {
+          "row": 3,
+          "col": 8
+        },
+        "facing": "left",
+        "route": {
+          "motionMode": null,
+          "startPosition": {
+            "row": 3,
+            "col": 8
+          },
+          "endPosition": {
+            "row": 2,
+            "col": 0
+          },
+          "spawnRandomRange": {
+            "x": 0.0,
+            "y": 0.0
+          },
+          "spawnOffset": {
+            "x": 0.0,
+            "y": 0.0
+          },
+          "checkpoints": [
+            {
+              "type": null,
+              "time": null,
+              "position": {
+                "row": 2,
+                "col": 3
+              },
+              "reachOffset": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "randomizeReachOffset": null,
+              "reachDistance": null
+            },
+            {
+              "type": null,
+              "time": null,
+              "position": {
+                "row": 3,
+                "col": 3
+              },
+              "reachOffset": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "randomizeReachOffset": null,
+              "reachDistance": null
+            },
+            {
+              "type": null,
+              "time": null,
+              "position": {
+                "row": 3,
+                "col": 1
+              },
+              "reachOffset": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "randomizeReachOffset": null,
+              "reachDistance": null
+            },
+            {
+              "type": null,
+              "time": null,
+              "position": {
+                "row": 2,
+                "col": 1
+              },
+              "reachOffset": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "randomizeReachOffset": null,
+              "reachDistance": null
+            }
+          ],
+          "checkpointCount": 4,
+          "allowDiagonalMove": true,
+          "visitEveryTileCenter": false,
+          "visitEveryNodeCenter": false,
+          "visitEveryCheckPoint": false
+        },
+        "instanceAlias": "spawn/1",
+        "parameters": {
+          "native_wave": 0,
+          "native_fragment": 1,
+          "native_action": 1,
+          "route_index": 2,
+          "spawn_random_range": {
+            "x": 0.0,
+            "y": 0.0
+          },
+          "spawn_offset": {
+            "x": 0.0,
+            "y": 0.0
+          }
+        }
+      },
+      {
+        "at_seconds": 16.0,
+        "definition": "unit/enemy_1007_slime",
+        "position": {
+          "row": 3,
+          "col": 8
+        },
+        "facing": "left",
+        "route": {
+          "motionMode": null,
+          "startPosition": {
+            "row": 3,
+            "col": 8
+          },
+          "endPosition": {
+            "row": 2,
+            "col": 0
+          },
+          "spawnRandomRange": {
+            "x": 0.3,
+            "y": 0.3
+          },
+          "spawnOffset": {
+            "x": 0.0,
+            "y": 0.0
+          },
+          "checkpoints": [
+            {
+              "type": null,
+              "time": null,
+              "position": {
+                "row": 2,
+                "col": 3
+              },
+              "reachOffset": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "randomizeReachOffset": null,
+              "reachDistance": null
+            },
+            {
+              "type": null,
+              "time": null,
+              "position": {
+                "row": 3,
+                "col": 3
+              },
+              "reachOffset": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "randomizeReachOffset": null,
+              "reachDistance": null
+            },
+            {
+              "type": null,
+              "time": null,
+              "position": {
+                "row": 3,
+                "col": 1
+              },
+              "reachOffset": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "randomizeReachOffset": null,
+              "reachDistance": null
+            },
+            {
+              "type": null,
+              "time": null,
+              "position": {
+                "row": 2,
+                "col": 1
+              },
+              "reachOffset": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "randomizeReachOffset": null,
+              "reachDistance": null
+            }
+          ],
+          "checkpointCount": 4,
+          "allowDiagonalMove": true,
+          "visitEveryTileCenter": false,
+          "visitEveryNodeCenter": false,
+          "visitEveryCheckPoint": false
+        },
+        "instanceAlias": "spawn/2",
+        "parameters": {
+          "native_wave": 0,
+          "native_fragment": 2,
+          "native_action": 0,
+          "route_index": 3,
+          "spawn_random_range": {
+            "x": 0.3,
+            "y": 0.3
+          },
+          "spawn_offset": {
+            "x": 0.0,
+            "y": 0.0
+          }
+        }
+      },
+      {
+        "at_seconds": 18.0,
+        "definition": "unit/enemy_1007_slime",
+        "position": {
+          "row": 3,
+          "col": 8
+        },
+        "facing": "left",
+        "route": {
+          "motionMode": null,
+          "startPosition": {
+            "row": 3,
+            "col": 8
+          },
+          "endPosition": {
+            "row": 2,
+            "col": 0
+          },
+          "spawnRandomRange": {
+            "x": 0.3,
+            "y": 0.3
+          },
+          "spawnOffset": {
+            "x": 0.0,
+            "y": 0.0
+          },
+          "checkpoints": [
+            {
+              "type": null,
+              "time": null,
+              "position": {
+                "row": 2,
+                "col": 3
+              },
+              "reachOffset": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "randomizeReachOffset": null,
+              "reachDistance": null
+            },
+            {
+              "type": null,
+              "time": null,
+              "position": {
+                "row": 3,
+                "col": 3
+              },
+              "reachOffset": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "randomizeReachOffset": null,
+              "reachDistance": null
+            },
+            {
+              "type": null,
+              "time": null,
+              "position": {
+                "row": 3,
+                "col": 1
+              },
+              "reachOffset": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "randomizeReachOffset": null,
+              "reachDistance": null
+            },
+            {
+              "type": null,
+              "time": null,
+              "position": {
+                "row": 2,
+                "col": 1
+              },
+              "reachOffset": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "randomizeReachOffset": null,
+              "reachDistance": null
+            }
+          ],
+          "checkpointCount": 4,
+          "allowDiagonalMove": true,
+          "visitEveryTileCenter": false,
+          "visitEveryNodeCenter": false,
+          "visitEveryCheckPoint": false
+        },
+        "instanceAlias": "spawn/3",
+        "parameters": {
+          "native_wave": 0,
+          "native_fragment": 2,
+          "native_action": 0,
+          "route_index": 3,
+          "spawn_random_range": {
+            "x": 0.3,
+            "y": 0.3
+          },
+          "spawn_offset": {
+            "x": 0.0,
+            "y": 0.0
+          }
+        }
+      },
+      {
+        "at_seconds": 29.0,
+        "definition": "unit/enemy_1007_slime",
+        "position": {
+          "row": 3,
+          "col": 8
+        },
+        "facing": "left",
+        "route": {
+          "motionMode": null,
+          "startPosition": {
+            "row": 3,
+            "col": 8
+          },
+          "endPosition": {
+            "row": 2,
+            "col": 0
+          },
+          "spawnRandomRange": {
+            "x": 0.3,
+            "y": 0.3
+          },
+          "spawnOffset": {
+            "x": 0.0,
+            "y": 0.0
+          },
+          "checkpoints": [
+            {
+              "type": null,
+              "time": null,
+              "position": {
+                "row": 2,
+                "col": 3
+              },
+              "reachOffset": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "randomizeReachOffset": null,
+              "reachDistance": null
+            },
+            {
+              "type": null,
+              "time": null,
+              "position": {
+                "row": 3,
+                "col": 3
+              },
+              "reachOffset": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "randomizeReachOffset": null,
+              "reachDistance": null
+            },
+            {
+              "type": null,
+              "time": null,
+              "position": {
+                "row": 3,
+                "col": 1
+              },
+              "reachOffset": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "randomizeReachOffset": null,
+              "reachDistance": null
+            },
+            {
+              "type": null,
+              "time": null,
+              "position": {
+                "row": 2,
+                "col": 1
+              },
+              "reachOffset": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "randomizeReachOffset": null,
+              "reachDistance": null
+            }
+          ],
+          "checkpointCount": 4,
+          "allowDiagonalMove": true,
+          "visitEveryTileCenter": false,
+          "visitEveryNodeCenter": false,
+          "visitEveryCheckPoint": false
+        },
+        "instanceAlias": "spawn/4",
+        "parameters": {
+          "native_wave": 0,
+          "native_fragment": 3,
+          "native_action": 0,
+          "route_index": 4,
+          "spawn_random_range": {
+            "x": 0.3,
+            "y": 0.3
+          },
+          "spawn_offset": {
+            "x": 0.0,
+            "y": 0.0
+          }
+        }
+      },
+      {
+        "at_seconds": 29.7,
+        "definition": "unit/enemy_1007_slime",
+        "position": {
+          "row": 3,
+          "col": 8
+        },
+        "facing": "left",
+        "route": {
+          "motionMode": null,
+          "startPosition": {
+            "row": 3,
+            "col": 8
+          },
+          "endPosition": {
+            "row": 2,
+            "col": 0
+          },
+          "spawnRandomRange": {
+            "x": 0.3,
+            "y": 0.3
+          },
+          "spawnOffset": {
+            "x": 0.0,
+            "y": 0.0
+          },
+          "checkpoints": [
+            {
+              "type": null,
+              "time": null,
+              "position": {
+                "row": 2,
+                "col": 3
+              },
+              "reachOffset": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "randomizeReachOffset": null,
+              "reachDistance": null
+            },
+            {
+              "type": null,
+              "time": null,
+              "position": {
+                "row": 3,
+                "col": 3
+              },
+              "reachOffset": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "randomizeReachOffset": null,
+              "reachDistance": null
+            },
+            {
+              "type": null,
+              "time": null,
+              "position": {
+                "row": 3,
+                "col": 1
+              },
+              "reachOffset": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "randomizeReachOffset": null,
+              "reachDistance": null
+            },
+            {
+              "type": null,
+              "time": null,
+              "position": {
+                "row": 2,
+                "col": 1
+              },
+              "reachOffset": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "randomizeReachOffset": null,
+              "reachDistance": null
+            }
+          ],
+          "checkpointCount": 4,
+          "allowDiagonalMove": true,
+          "visitEveryTileCenter": false,
+          "visitEveryNodeCenter": false,
+          "visitEveryCheckPoint": false
+        },
+        "instanceAlias": "spawn/5",
+        "parameters": {
+          "native_wave": 0,
+          "native_fragment": 3,
+          "native_action": 0,
+          "route_index": 4,
+          "spawn_random_range": {
+            "x": 0.3,
+            "y": 0.3
+          },
+          "spawn_offset": {
+            "x": 0.0,
+            "y": 0.0
+          }
+        }
+      },
+      {
+        "at_seconds": 34.0,
+        "definition": "unit/enemy_1007_slime",
+        "position": {
+          "row": 3,
+          "col": 8
+        },
+        "facing": "left",
+        "route": {
+          "motionMode": null,
+          "startPosition": {
+            "row": 3,
+            "col": 8
+          },
+          "endPosition": {
+            "row": 2,
+            "col": 0
+          },
+          "spawnRandomRange": {
+            "x": 0.3,
+            "y": 0.3
+          },
+          "spawnOffset": {
+            "x": 0.0,
+            "y": 0.0
+          },
+          "checkpoints": [
+            {
+              "type": null,
+              "time": null,
+              "position": {
+                "row": 2,
+                "col": 3
+              },
+              "reachOffset": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "randomizeReachOffset": null,
+              "reachDistance": null
+            },
+            {
+              "type": null,
+              "time": null,
+              "position": {
+                "row": 3,
+                "col": 3
+              },
+              "reachOffset": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "randomizeReachOffset": null,
+              "reachDistance": null
+            },
+            {
+              "type": null,
+              "time": null,
+              "position": {
+                "row": 3,
+                "col": 1
+              },
+              "reachOffset": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "randomizeReachOffset": null,
+              "reachDistance": null
+            },
+            {
+              "type": null,
+              "time": null,
+              "position": {
+                "row": 2,
+                "col": 1
+              },
+              "reachOffset": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "randomizeReachOffset": null,
+              "reachDistance": null
+            }
+          ],
+          "checkpointCount": 4,
+          "allowDiagonalMove": true,
+          "visitEveryTileCenter": false,
+          "visitEveryNodeCenter": false,
+          "visitEveryCheckPoint": false
+        },
+        "instanceAlias": "spawn/6",
+        "parameters": {
+          "native_wave": 0,
+          "native_fragment": 3,
+          "native_action": 1,
+          "route_index": 5,
+          "spawn_random_range": {
+            "x": 0.3,
+            "y": 0.3
+          },
+          "spawn_offset": {
+            "x": 0.0,
+            "y": 0.0
+          }
+        }
+      },
+      {
+        "at_seconds": 45.0,
+        "definition": "unit/enemy_1007_slime",
+        "position": {
+          "row": 3,
+          "col": 8
+        },
+        "facing": "left",
+        "route": {
+          "motionMode": null,
+          "startPosition": {
+            "row": 3,
+            "col": 8
+          },
+          "endPosition": {
+            "row": 2,
+            "col": 0
+          },
+          "spawnRandomRange": {
+            "x": 0.3,
+            "y": 0.3
+          },
+          "spawnOffset": {
+            "x": 0.0,
+            "y": 0.0
+          },
+          "checkpoints": [
+            {
+              "type": null,
+              "time": null,
+              "position": {
+                "row": 2,
+                "col": 3
+              },
+              "reachOffset": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "randomizeReachOffset": null,
+              "reachDistance": null
+            },
+            {
+              "type": null,
+              "time": null,
+              "position": {
+                "row": 3,
+                "col": 3
+              },
+              "reachOffset": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "randomizeReachOffset": null,
+              "reachDistance": null
+            },
+            {
+              "type": null,
+              "time": null,
+              "position": {
+                "row": 3,
+                "col": 1
+              },
+              "reachOffset": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "randomizeReachOffset": null,
+              "reachDistance": null
+            },
+            {
+              "type": null,
+              "time": null,
+              "position": {
+                "row": 2,
+                "col": 1
+              },
+              "reachOffset": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "randomizeReachOffset": null,
+              "reachDistance": null
+            }
+          ],
+          "checkpointCount": 4,
+          "allowDiagonalMove": true,
+          "visitEveryTileCenter": false,
+          "visitEveryNodeCenter": false,
+          "visitEveryCheckPoint": false
+        },
+        "instanceAlias": "spawn/7",
+        "parameters": {
+          "native_wave": 0,
+          "native_fragment": 4,
+          "native_action": 0,
+          "route_index": 6,
+          "spawn_random_range": {
+            "x": 0.3,
+            "y": 0.3
+          },
+          "spawn_offset": {
+            "x": 0.0,
+            "y": 0.0
+          }
+        }
+      },
+      {
+        "at_seconds": 45.7,
+        "definition": "unit/enemy_1007_slime",
+        "position": {
+          "row": 3,
+          "col": 8
+        },
+        "facing": "left",
+        "route": {
+          "motionMode": null,
+          "startPosition": {
+            "row": 3,
+            "col": 8
+          },
+          "endPosition": {
+            "row": 2,
+            "col": 0
+          },
+          "spawnRandomRange": {
+            "x": 0.3,
+            "y": 0.3
+          },
+          "spawnOffset": {
+            "x": 0.0,
+            "y": 0.0
+          },
+          "checkpoints": [
+            {
+              "type": null,
+              "time": null,
+              "position": {
+                "row": 2,
+                "col": 3
+              },
+              "reachOffset": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "randomizeReachOffset": null,
+              "reachDistance": null
+            },
+            {
+              "type": null,
+              "time": null,
+              "position": {
+                "row": 3,
+                "col": 3
+              },
+              "reachOffset": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "randomizeReachOffset": null,
+              "reachDistance": null
+            },
+            {
+              "type": null,
+              "time": null,
+              "position": {
+                "row": 3,
+                "col": 1
+              },
+              "reachOffset": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "randomizeReachOffset": null,
+              "reachDistance": null
+            },
+            {
+              "type": null,
+              "time": null,
+              "position": {
+                "row": 2,
+                "col": 1
+              },
+              "reachOffset": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "randomizeReachOffset": null,
+              "reachDistance": null
+            }
+          ],
+          "checkpointCount": 4,
+          "allowDiagonalMove": true,
+          "visitEveryTileCenter": false,
+          "visitEveryNodeCenter": false,
+          "visitEveryCheckPoint": false
+        },
+        "instanceAlias": "spawn/8",
+        "parameters": {
+          "native_wave": 0,
+          "native_fragment": 4,
+          "native_action": 0,
+          "route_index": 6,
+          "spawn_random_range": {
+            "x": 0.3,
+            "y": 0.3
+          },
+          "spawn_offset": {
+            "x": 0.0,
+            "y": 0.0
+          }
+        }
+      },
+      {
+        "at_seconds": 52.0,
+        "definition": "unit/enemy_1007_slime",
+        "position": {
+          "row": 3,
+          "col": 8
+        },
+        "facing": "left",
+        "route": {
+          "motionMode": null,
+          "startPosition": {
+            "row": 3,
+            "col": 8
+          },
+          "endPosition": {
+            "row": 2,
+            "col": 0
+          },
+          "spawnRandomRange": {
+            "x": 0.3,
+            "y": 0.3
+          },
+          "spawnOffset": {
+            "x": 0.0,
+            "y": 0.0
+          },
+          "checkpoints": [
+            {
+              "type": null,
+              "time": null,
+              "position": {
+                "row": 2,
+                "col": 3
+              },
+              "reachOffset": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "randomizeReachOffset": null,
+              "reachDistance": null
+            },
+            {
+              "type": null,
+              "time": null,
+              "position": {
+                "row": 3,
+                "col": 3
+              },
+              "reachOffset": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "randomizeReachOffset": null,
+              "reachDistance": null
+            },
+            {
+              "type": null,
+              "time": null,
+              "position": {
+                "row": 3,
+                "col": 1
+              },
+              "reachOffset": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "randomizeReachOffset": null,
+              "reachDistance": null
+            },
+            {
+              "type": null,
+              "time": null,
+              "position": {
+                "row": 2,
+                "col": 1
+              },
+              "reachOffset": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "randomizeReachOffset": null,
+              "reachDistance": null
+            }
+          ],
+          "checkpointCount": 4,
+          "allowDiagonalMove": true,
+          "visitEveryTileCenter": false,
+          "visitEveryNodeCenter": false,
+          "visitEveryCheckPoint": false
+        },
+        "instanceAlias": "spawn/9",
+        "parameters": {
+          "native_wave": 0,
+          "native_fragment": 4,
+          "native_action": 1,
+          "route_index": 7,
+          "spawn_random_range": {
+            "x": 0.3,
+            "y": 0.3
+          },
+          "spawn_offset": {
+            "x": 0.0,
+            "y": 0.0
+          }
+        }
+      },
+      {
+        "at_seconds": 52.7,
+        "definition": "unit/enemy_1007_slime",
+        "position": {
+          "row": 3,
+          "col": 8
+        },
+        "facing": "left",
+        "route": {
+          "motionMode": null,
+          "startPosition": {
+            "row": 3,
+            "col": 8
+          },
+          "endPosition": {
+            "row": 2,
+            "col": 0
+          },
+          "spawnRandomRange": {
+            "x": 0.3,
+            "y": 0.3
+          },
+          "spawnOffset": {
+            "x": 0.0,
+            "y": 0.0
+          },
+          "checkpoints": [
+            {
+              "type": null,
+              "time": null,
+              "position": {
+                "row": 2,
+                "col": 3
+              },
+              "reachOffset": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "randomizeReachOffset": null,
+              "reachDistance": null
+            },
+            {
+              "type": null,
+              "time": null,
+              "position": {
+                "row": 3,
+                "col": 3
+              },
+              "reachOffset": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "randomizeReachOffset": null,
+              "reachDistance": null
+            },
+            {
+              "type": null,
+              "time": null,
+              "position": {
+                "row": 3,
+                "col": 1
+              },
+              "reachOffset": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "randomizeReachOffset": null,
+              "reachDistance": null
+            },
+            {
+              "type": null,
+              "time": null,
+              "position": {
+                "row": 2,
+                "col": 1
+              },
+              "reachOffset": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "randomizeReachOffset": null,
+              "reachDistance": null
+            }
+          ],
+          "checkpointCount": 4,
+          "allowDiagonalMove": true,
+          "visitEveryTileCenter": false,
+          "visitEveryNodeCenter": false,
+          "visitEveryCheckPoint": false
+        },
+        "instanceAlias": "spawn/10",
+        "parameters": {
+          "native_wave": 0,
+          "native_fragment": 4,
+          "native_action": 1,
+          "route_index": 7,
+          "spawn_random_range": {
+            "x": 0.3,
+            "y": 0.3
+          },
+          "spawn_offset": {
+            "x": 0.0,
+            "y": 0.0
+          }
+        }
+      },
+      {
+        "at_seconds": 63.7,
+        "definition": "unit/enemy_1002_nsabr",
+        "position": {
+          "row": 3,
+          "col": 8
+        },
+        "facing": "left",
+        "route": {
+          "motionMode": null,
+          "startPosition": {
+            "row": 3,
+            "col": 8
+          },
+          "endPosition": {
+            "row": 2,
+            "col": 0
+          },
+          "spawnRandomRange": {
+            "x": 0.0,
+            "y": 0.0
+          },
+          "spawnOffset": {
+            "x": 0.0,
+            "y": 0.0
+          },
+          "checkpoints": [
+            {
+              "type": null,
+              "time": null,
+              "position": {
+                "row": 3,
+                "col": 7
+              },
+              "reachOffset": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "randomizeReachOffset": null,
+              "reachDistance": null
+            },
+            {
+              "type": {
+                "value": 1,
+                "name": "WAIT_FOR_SECONDS"
+              },
+              "time": 3.0,
+              "position": {
+                "row": 5,
+                "col": 0
+              },
+              "reachOffset": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "randomizeReachOffset": null,
+              "reachDistance": null
+            },
+            {
+              "type": null,
+              "time": null,
+              "position": {
+                "row": 2,
+                "col": 3
+              },
+              "reachOffset": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "randomizeReachOffset": null,
+              "reachDistance": null
+            },
+            {
+              "type": null,
+              "time": null,
+              "position": {
+                "row": 3,
+                "col": 3
+              },
+              "reachOffset": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "randomizeReachOffset": null,
+              "reachDistance": null
+            },
+            {
+              "type": null,
+              "time": null,
+              "position": {
+                "row": 3,
+                "col": 1
+              },
+              "reachOffset": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "randomizeReachOffset": null,
+              "reachDistance": null
+            },
+            {
+              "type": null,
+              "time": null,
+              "position": {
+                "row": 2,
+                "col": 1
+              },
+              "reachOffset": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "randomizeReachOffset": null,
+              "reachDistance": null
+            }
+          ],
+          "checkpointCount": 6,
+          "allowDiagonalMove": true,
+          "visitEveryTileCenter": false,
+          "visitEveryNodeCenter": false,
+          "visitEveryCheckPoint": false
+        },
+        "instanceAlias": "spawn/11",
+        "parameters": {
+          "native_wave": 0,
+          "native_fragment": 5,
+          "native_action": 1,
+          "route_index": 9,
+          "spawn_random_range": {
+            "x": 0.0,
+            "y": 0.0
+          },
+          "spawn_offset": {
+            "x": 0.0,
+            "y": 0.0
+          }
+        }
+      }
+    ],
+    "seed": 1055433261,
+    "resources": {
+      "dp": {
+        "initial": 10,
+        "capacity": 99,
+        "recovery_rate": 1.0,
+        "recovery_rule": "rule/ark_import_resource_recovery",
+        "recovery": {
+          "mode": "periodic",
+          "interval_seconds": 1.0
+        }
+      },
+      "life": {
+        "initial": 20,
+        "capacity": 20
+      }
+    },
+    "objectives": {
+      "type": "waves",
+      "life_resource": "life",
+      "defeat_threshold": 0
+    },
+    "parameters": {
+      "deploy_capacity": 8
+    },
+    "metadata": {
+      "verification": "model_unverified",
+      "source_hash": "f71299c156d27a03d849115df49bd53c1abff79497f233e3266dde1988f6d6fa",
+      "pendingCalibration": [
+        "enemy_1007_slime: OnAttack missing; explicit model hit ratio 0.5",
+        "enemy_1002_nsabr: OnAttack missing; explicit model hit ratio 0.5",
+        "spawnRandomRange uses independent uniform axes; awaiting real-game calibration",
+        "STORY is observable and controllable by pause commands; tutorial timing awaits game traces",
+        "operator growth, attack animation scaling and projectile speed await external comparison",
+        "Four-neighbour shortest path preserves walls; native diagonal steering is unverified",
+        "Tutorial STORY controls retained as source evidence; native tutorial pacing awaits traces"
+      ],
+      "native_controls": [
+        {
+          "at_seconds": 0,
+          "type": "STORY",
+          "native": {
+            "actionType": {
+              "value": 2,
+              "name": "STORY"
+            },
+            "managedByScheduler": true,
+            "key": "obt/tutorial/level/main_00-01",
+            "count": 1,
+            "preDelay": null,
+            "interval": 1.0,
+            "routeIndex": null,
+            "blockFragment": false,
+            "autoPreviewRoute": false,
+            "autoDisplayEnemyInfo": false,
+            "isUnharmfulAndAlwaysCountAsKilled": false,
+            "hiddenGroup": null,
+            "randomSpawnGroupKey": null,
+            "randomSpawnGroupPackKey": null,
+            "randomType": {
+              "value": 0,
+              "name": "ALWAYS"
+            },
+            "refreshType": {
+              "value": 0,
+              "name": "ALWAYS"
+            },
+            "weight": null,
+            "dontBlockWave": false,
+            "forceBlockWaveInBranch": false,
+            "notCountInTotal": false
+          },
+          "wave": 0,
+          "fragment": 0
+        },
+        {
+          "at_seconds": 5.0,
+          "type": "DISPLAY_ENEMY_INFO",
+          "native": {
+            "actionType": {
+              "value": 5,
+              "name": "DISPLAY_ENEMY_INFO"
+            },
+            "managedByScheduler": true,
+            "key": "enemy_1007_slime",
+            "count": 1,
+            "preDelay": 3.0,
+            "interval": 1.0,
+            "routeIndex": 1,
+            "blockFragment": false,
+            "autoPreviewRoute": true,
+            "autoDisplayEnemyInfo": false,
+            "isUnharmfulAndAlwaysCountAsKilled": false,
+            "hiddenGroup": null,
+            "randomSpawnGroupKey": null,
+            "randomSpawnGroupPackKey": null,
+            "randomType": {
+              "value": 0,
+              "name": "ALWAYS"
+            },
+            "refreshType": {
+              "value": 0,
+              "name": "ALWAYS"
+            },
+            "weight": null,
+            "dontBlockWave": false,
+            "forceBlockWaveInBranch": false,
+            "notCountInTotal": false
+          },
+          "wave": 0,
+          "fragment": 1
+        },
+        {
+          "at_seconds": 63.7,
+          "type": "DISPLAY_ENEMY_INFO",
+          "native": {
+            "actionType": {
+              "value": 5,
+              "name": "DISPLAY_ENEMY_INFO"
+            },
+            "managedByScheduler": true,
+            "key": "enemy_1002_nsabr",
+            "count": 1,
+            "preDelay": 3.0,
+            "interval": 1.0,
+            "routeIndex": 8,
+            "blockFragment": false,
+            "autoPreviewRoute": true,
+            "autoDisplayEnemyInfo": false,
+            "isUnharmfulAndAlwaysCountAsKilled": false,
+            "hiddenGroup": null,
+            "randomSpawnGroupKey": null,
+            "randomSpawnGroupPackKey": null,
+            "randomType": {
+              "value": 0,
+              "name": "ALWAYS"
+            },
+            "refreshType": {
+              "value": 0,
+              "name": "ALWAYS"
+            },
+            "weight": null,
+            "dontBlockWave": false,
+            "forceBlockWaveInBranch": false,
+            "notCountInTotal": false
+          },
+          "wave": 0,
+          "fragment": 5
+        }
+      ],
+      "native_options": {
+        "characterLimit": 8,
+        "maxLifePoint": 20,
+        "initialCost": 10,
+        "maxCost": 99,
+        "costIncreaseTime": 1.0,
+        "moveMultiplier": 0.5,
+        "steeringEnabled": true,
+        "maxPlayTime": -1.0
+      }
+    }
+  }
+}

@@ -1,0 +1,230 @@
+{
+  "schemaVersion": 1,
+  "reviewDate": "2026-10-01",
+  "timezone": "Asia/Shanghai",
+  "scope": "offline code review; no new real-game traces; no runtime implementation edits",
+  "testRun": {
+    "command": "..\\.venv\\Scripts\\python.exe -m pytest tests -q --tb=short",
+    "workingDirectory": "Ark_emulator",
+    "collected": 762,
+    "passed": 717,
+    "failed": 45,
+    "durationSeconds": 549.77,
+    "exitCode": 1,
+    "failureNodeIds": [
+      "tests/test_advanced_features.py::test_operator_skill_effects",
+      "tests/test_attack_sp.py::test_windflit_s1_gives_sp_to_battery_wearers",
+      "tests/test_attack_sp.py::test_windflit_s1_no_sp_without_activation",
+      "tests/test_boss_behavior.py::test_enemy_mapwide_direct_aoe",
+      "tests/test_boss_behavior.py::test_enemy_small_radius_attack_aoe",
+      "tests/test_chain_heal.py::test_chain_heal_base_jump_count",
+      "tests/test_chain_heal.py::test_papyrs_s2_chain_heal_extra_jump",
+      "tests/test_enemy_buffs.py::test_enemy_healer_heals_allies_in_range",
+      "tests/test_enemy_prefab_aliases.py::test_new_enemies_spawn_with_resolved_skills",
+      "tests/test_enemy_prefab_aliases.py::test_shining_and_countdown_local_overrides",
+      "tests/test_ep_break_templates.py::test_blaze2_global_fire_burst_heals_source",
+      "tests/test_ep_break_templates.py::test_blaze2_ignores_non_fire_burst",
+      "tests/test_ep_break_templates.py::test_leader_enemy_ep_threshold_2000",
+      "tests/test_ep_break_templates.py::test_leader_ep_threshold_respects_maxep_attribute",
+      "tests/test_ep_break_templates.py::test_normal_elite_enemy_ep_threshold_1000",
+      "tests/test_ep_break_templates.py::test_phatm2_existing_cage_refresh",
+      "tests/test_ep_break_templates.py::test_phatm2_neural_burst_spawns_cage",
+      "tests/test_ep_break_templates.py::test_thumpy_water_break_detect_grants_def_and_shield",
+      "tests/test_force_weight.py::test_pull_release_block_and_snapshot",
+      "tests/test_level_loading.py::test_official_gamedata_levels_load",
+      "tests/test_level_loading.py::test_official_level_hidden_predefines_activate",
+      "tests/test_level_loading.py::test_official_level_predefines_spawn",
+      "tests/test_level_runes.py::test_predefines_enable_rune",
+      "tests/test_level_runes.py::test_random_predefine_tokens_on_tile",
+      "tests/test_modules.py::test_harold_wdmx_module_trait_and_talent",
+      "tests/test_modules.py::test_module_attributes_applied_on_deploy",
+      "tests/test_modules.py::test_module_nested_config_and_blaze2_def",
+      "tests/test_modules.py::test_module_stat_bonus_levels",
+      "tests/test_modules.py::test_trust_bonus_scales_with_trust",
+      "tests/test_predefines.py::test_parse_predefines_structure",
+      "tests/test_predefines.py::test_predefined_character_spawns",
+      "tests/test_predefines.py::test_predefined_token_spawns",
+      "tests/test_predefines.py::test_predefined_tower_attacks",
+      "tests/test_predefines.py::test_predefined_tower_heals",
+      "tests/test_predefines.py::test_wave_activate_and_lifecycle",
+      "tests/test_prts.py::test_prts_move_then_create_buff",
+      "tests/test_search_tick.py::test_enemy_keeps_nearest_target_between_search_ticks",
+      "tests/test_search_tick.py::test_enemy_skill_blocked_target_bypasses_gate",
+      "tests/test_search_tick.py::test_enemy_skill_force_rescans_when_cached_target_invalid",
+      "tests/test_search_tick.py::test_enemy_skill_target_search_respects_gate",
+      "tests/test_search_tick.py::test_medic_keeps_heal_target_between_search_ticks",
+      "tests/test_skill_system.py::test_enemy_skill_targets_blocker",
+      "tests/test_talent_aura.py::test_swire_melee_cell8_atk_aura",
+      "tests/test_taraxa_liftoff.py::test_taraxa_liftoff_blocks_flying_enemy",
+      "tests/test_wandermedic_trait.py::test_agoat2_s1_ep_regen_aura"
+    ]
+  },
+  "localData": {
+    "levels": 2854,
+    "stageEntries": 3522,
+    "deployableCharacterRows": 454,
+    "enemyDatabaseKeys": 2130,
+    "enemySkillCatalogEntries": 1656,
+    "rangeDefinitions": 73,
+    "missingCharacterDataFiles": [
+      "module_stats.json",
+      "trust_prts.json"
+    ]
+  },
+  "coreSize": {
+    "pythonModules": 39,
+    "pythonLines": 33045
+  },
+  "reproductions": [
+    {
+      "id": "F01",
+      "file": "ark_emulator/attributes.py",
+      "case": "base atk 100 plus two multiplicative 0.5 modifiers",
+      "expected": 200,
+      "observed": 225,
+      "basis": "local MECHANICS section 2.2"
+    },
+    {
+      "id": "F02",
+      "file": "ark_emulator/battle.py; ark_emulator/ai.py",
+      "case": "enemy_1011_wizard atk 100 versus def 90 and res 0",
+      "expectedHpLoss": 100,
+      "observedHpLoss": 10,
+      "observedProjectileDamageType": 0,
+      "expectedDamageType": 1,
+      "basis": "enemy Ability _damageType 2 translated by project enum"
+    },
+    {
+      "id": "F03",
+      "file": "ark_emulator/operator_skills.py",
+      "case": "skill range x-1 selects enemy offset (-2,5)",
+      "nativeRangeCellCount": 13,
+      "expectedSelected": false,
+      "observedSelected": true
+    },
+    {
+      "id": "F04",
+      "file": "ark_emulator/battle.py",
+      "case": "range shape uses first nonempty phase",
+      "amiya": {
+        "phaseRangeIds": [
+          "3-6",
+          "3-1",
+          "3-1"
+        ],
+        "observedCells": 9,
+        "expectedElite2Cells": 10
+      },
+      "angel": {
+        "phaseRangeIds": [
+          "3-1",
+          "3-3",
+          "3-3"
+        ],
+        "observedCells": 10,
+        "expectedElite2Cells": 12
+      }
+    },
+    {
+      "id": "F05",
+      "file": "ark_emulator/battle.py",
+      "case": "level_a001_01 enemy_1027_mob overwrittenData maxHp",
+      "expectedMaxHp": 1850,
+      "observedMaxHp": 1700,
+      "bundleNonemptyOverwriteObjects": 4073
+    },
+    {
+      "id": "F06",
+      "file": "ark_emulator/live_server.py",
+      "case": "two HTTP deployment requests interleaved after occupancy validation using a barrier",
+      "observedResponses": [
+        true,
+        true
+      ],
+      "observedPositions": [
+        [
+          1,
+          1
+        ],
+        [
+          1,
+          1
+        ]
+      ],
+      "note": "controlled interleaving; no live game used"
+    },
+    {
+      "id": "F07",
+      "file": "ark_emulator/battle.py",
+      "case": "deploy char_502_nblade twice onto different tiles",
+      "observedResponses": [
+        true,
+        true
+      ],
+      "observedAliveCopies": 2
+    },
+    {
+      "id": "F08",
+      "file": "ark_emulator/battle.py",
+      "case": "empty standard timeline plus one custom enemy at 5 seconds",
+      "observedTick": 1,
+      "observedResult": "victory",
+      "remainingCustomEnemies": 1
+    },
+    {
+      "id": "F09",
+      "file": "ark_emulator/agent_env.py",
+      "case": "amiya legal_actions on ground-only custom level",
+      "observedDeployActions": 8,
+      "firstDeployResult": [
+        false,
+        "not_buildable"
+      ]
+    },
+    {
+      "id": "F10",
+      "file": "ark_emulator/buffs.py",
+      "case": "buff expires during tick 2",
+      "expectedEventTick": 2,
+      "observedEventTick": 0
+    }
+  ],
+  "newScope": {
+    "confirmedLevel": "level_main_00-01",
+    "userConfirmed": true,
+    "suggestedOperatorOrder": [
+      "char_502_nblade",
+      "char_124_kroos",
+      "char_123_fang",
+      "char_120_hibisc"
+    ],
+    "operatorOrderConfirmed": false,
+    "implementationStatus": "requirements_and_design_only"
+  },
+  "firstLevelData": {
+    "mapRows": 6,
+    "mapCols": 9,
+    "routes": 10,
+    "rawWaves": 1,
+    "maxLifePoint": 20,
+    "initialCost": 10,
+    "maxCost": 99,
+    "characterLimit": 8,
+    "costIncreaseTime": 1,
+    "moveMultiplier": 0.5,
+    "spawnCounts": {
+      "enemy_1007_slime": 10,
+      "enemy_1002_nsabr": 1
+    },
+    "enemyOverrides": {
+      "enemy_1002_nsabr": {
+        "def": 30
+      }
+    },
+    "otherActions": [
+      "STORY",
+      "DISPLAY_ENEMY_INFO"
+    ],
+    "gameVersionVerified": false
+  }
+}
