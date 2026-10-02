@@ -60,6 +60,7 @@ damage_calculator/
 
 # 肉鸽解包工作区 (本地)
 rougelike/
+data-origin/
 
 # 宣传视频本地素材与制作工作区
 /promo_assets/
@@ -67,3 +68,5 @@ rougelike/
 
 # Local AssetBundle extraction workspace
 /unpack_work/
+
+.vs/

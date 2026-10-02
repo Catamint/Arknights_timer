@@ -21,8 +21,15 @@
 
 **关卡真正的 waves/routes/enemies 不在 stage_table 内**，而在独立 TextAsset：
 `level_*`（如 `level_main_01-01`、`level_act5d0_*`、`level_rogue*`）。
-全量索引见 `data/levels_index.json`（6021 个，按前缀：main 1014、memory 302、
-rogue5 185、sandbox2 184、act*side 大量、st 86、hard 53、sub 48…）。
+原始资产 ID 索引见 `data/levels_index.json`，由
+`generate_levels_index.py` 从 `Ark_emulator/ark_emulator/data_level_assets_index.json`
+生成，并补入本地已有的额外解析关卡；它是 bundle coverage 的分母，不代表这些
+关卡都已解析。重新生成并构建 bundle：
+
+```bash
+python ark_parser/enemy/generate_levels_index.py
+python ark_parser/enemy/build_sim_bundle.py
+```
 
 ### 1.1 关卡资产现状：Only Sign，已解密（2026-08-05 端到端验证）
 

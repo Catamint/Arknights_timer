@@ -49,31 +49,54 @@ TABLE_PREFIXES = [
     "hotupdate_meta_table",
 ]
 
-# Compiled pattern: match any table prefix followed by hex hash
-TABLE_PATTERN = re.compile(rf"({'|'.join(TABLE_PREFIXES)})[a-f0-9]{{4,}}")
 TABLE_FULL_PATTERN = re.compile(
     rf"^({'|'.join(TABLE_PREFIXES)})[a-f0-9]{{4,}}$")
 
 
 def scan_cab_file(filepath: Path) -> str | None:
-    """Read first 8KB of file and extract table identifier."""
+    """Return the table ID from an exportRaw name-length header."""
     try:
         with open(filepath, "rb") as f:
             header = f.read(8192)
-        # exportRaw 剥离版以 [u32 名称长度][表名] 开头。优先按长度精确读取，
-        # 避免签名头首字节恰为 ASCII 十六进制字符时被正则误拼进表 ID。
         if len(header) >= 4:
             name_len = struct.unpack_from("<I", header, 0)[0]
             if 0 < name_len <= 256 and 4 + name_len <= len(header):
                 table_id = header[4:4 + name_len].decode("ascii", errors="ignore")
                 if TABLE_FULL_PATTERN.fullmatch(table_id):
                     return table_id
-        # Find ASCII strings in header
-        text = header.decode("ascii", errors="ignore")
-        match = TABLE_PATTERN.search(text)
-        return match.group(0) if match else None
+        return None
     except Exception:
         return None
+
+
+def find_tables(anon_dir: Path) -> dict[str, Path]:
+    """Find valid raw exports; later base/hot directories override earlier ones."""
+    found = {}
+    raw_suffixes = {".bin", ".dat", ".bytes"}
+
+    for source in sorted(anon_dir.iterdir()):
+        if source.is_dir() and source.name.endswith(".bin_unpacked"):
+            candidates = source.glob("CAB-*")
+        elif source.is_dir():
+            candidates = (
+                path for path in source.rglob("*")
+                if path.is_file()
+                and path.suffix.lower() in raw_suffixes
+                and path.name.lower().startswith(tuple(TABLE_PREFIXES))
+            )
+        elif source.is_file():
+            candidates = (source,)
+        else:
+            continue
+
+        for candidate in sorted(candidates):
+            if not candidate.is_file() or candidate.stat().st_size < 4 * 1024:
+                continue
+            table_id = scan_cab_file(candidate)
+            if table_id:
+                found[table_id] = candidate
+
+    return found
 
 
 def main():
@@ -90,21 +113,7 @@ def main():
 
     print(f"Scanning {ANON_DIR} for data tables...\n")
 
-    found = {}
-    min_size = 4 * 1024  # 4KB（热更小表如 hotupdate_meta 只有几 KB）
-
-    # 按目录名排序扫描，后扫到的覆盖先扫到的：
-    # 命名约定 base_* < zz_hot_*，保证热更表覆盖基础包同名表。
-    for bin_dir in sorted(ANON_DIR.glob("*.bin_unpacked")):
-        for cab_file in bin_dir.glob("CAB-*"):
-            if not cab_file.is_file():
-                continue
-            if cab_file.stat().st_size < min_size:
-                continue
-
-            table_id = scan_cab_file(cab_file)
-            if table_id:
-                found[table_id] = cab_file
+    found = find_tables(ANON_DIR)
 
     # Copy found tables
     for table_id, src in sorted(found.items()):

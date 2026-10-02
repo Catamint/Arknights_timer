@@ -96,19 +96,20 @@ CLI="AssetStudio-ArknightsStudio/AssetStudioCLI/bin/Release/net8.0/ArknightsStud
 "$CLI" "<游戏>\Arknights_Data\StreamingAssets\AB\Windows\anon"        -t textAsset -m exportRaw -g none -o <base_out>
 "$CLI" "<游戏>\Arknights_Data\PersistentData\Bundles\anon"            -t textAsset -m exportRaw -g none -o <hot_out>
 ```
-2. 把两批 `.dat` 表文件按 `data/anon/<名字>.bin_unpacked/CAB-*` 布局摆放
-   （目录名排序后者优先：base 用 `base_*`，热更用 `zz_hot_*`），然后运行：
+2. 把两批 `.dat` 表文件分别放在 `data/anon/base_<日期>/` 与
+  `data/anon/zz_hot_<日期>/`，然后运行：
 ```bash
 python extract_tables.py
 ```
 
-脚本扫描 `data/anon/*.bin_unpacked/CAB-*`（按目录名排序，**后扫到的覆盖先扫到的**，
-保证热更表生效），识别表名并提取到 `data/tables/`。
+脚本扫描平铺目录中的 `.dat`/`.bin`/`.bytes` exportRaw 文件，以及
+`*.bin_unpacked/CAB-*` 中带 exportRaw 长度前缀的文件；按目录名排序，**后扫到的
+覆盖先扫到的**，保证 `zz_hot_*` 热更表覆盖 `base_*`，再提取到 `data/tables/`。
 
 > **格式陷阱：** AssetStudio GUI「Extract folder」产出的 `CAB-*` 是 Unity
-> SerializedFile（全零头），**不能**直接被 `FB` 解析器读取；只有 exportRaw
-> 剥离版（`[u32 名字长度][表名][128B 签名头][FlatBuffers]`）可以。2026-08 起
-> data/anon 只放剥离版伪解包目录。
+> SerializedFile（全零头），**不能**直接被 `FB` 解析器读取；即使头部之后包含
+> 表名也不会被提取器接受。只有 exportRaw 剥离版
+> (`[u32 名字长度][表名][128B 签名头][FlatBuffers]`) 可以。
 
 当前基线（2026-08-11）：base = 2026-07-22 安装版 + hot = 2026-08-11 热更，
 快照在 `unpack_work/all_tables_20260801_base/` 与 `unpack_work/hot_20260811/raw/`。

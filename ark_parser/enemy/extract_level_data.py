@@ -44,7 +44,7 @@ i2f = E.i2f
 parse_blackboard = E.parse_blackboard
 parse_enemy_data = E.parse_enemy_data
 
-DEFAULT_SRC = r"G:\Arknights\unpack_work\level_assets_all"
+DEFAULT_SRC = r"data\level_assets_all"
 DEFAULT_OUT = os.path.join(SCRIPT_DIR, "data", "levels")
 
 LEVEL_NAMES = [

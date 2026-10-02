@@ -14,7 +14,7 @@
 | `data/enemy_handbook.json` | 图鉴条目（通用索引解析，字段名待精化） |
 | `data/stage_enemy_usage.json` | 3467 个关卡 StageData（stageId/levelId/code/name/difficulty…） |
 | `data/enemy_stats.json` | 统计：标签/运动模式/等级类型/SP 类型/技能 prefabKey/黑板 key 分布 |
-| `data/levels_index.json` | 6021 个 `level_*` 关卡资产索引（关卡内容所在处，见 02 文档） |
+| `data/levels_index.json` | 由 `generate_levels_index.py` 生成的原始关卡资产 ID 索引，供 bundle coverage 使用（见 02 文档） |
 
 ## 2. 文件格式（Arknights 自定义 FlatBuffers）
 

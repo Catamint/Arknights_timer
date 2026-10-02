@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "source": "Ark_data\\dump.cs",
-  "source_sha256": "d25fb9fb7ec81253f112d9090e4550cd37a273ace56085d37610bb67c1e3a88f",
-  "generated_at": "2026-09-08T17:11:27+08:00",
+  "source": "data\\anon\\zz_hot_20261001\\dump.cs",
+  "source_sha256": "14b1b708498d004c0b52ed2b6061cff40724e65554fd27ba3dc4c1f8ca6c4139",
+  "generated_at": "2026-10-02T02:05:49+08:00",
   "classes": {
     "EntityFields": {
       "M_STATE_MACHINE": "0x38",
